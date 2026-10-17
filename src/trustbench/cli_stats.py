@@ -169,3 +169,59 @@ def policy_init(out: Path = typer.Option(Path("policy.yaml")), force: bool = typ
         raise typer.Exit(1)
     out.write_text(TEMPLATE)
     console.print(f"Wrote {out}.")
+
+
+@app.command()
+def report(
+    run_id: str,
+    model: str = typer.Option(None, help="Show one model only"),
+    as_json: bool = typer.Option(False, "--json", help="Print JSON instead of tables"),
+):
+    """Full report of a run: pass rates with intervals, weak slices, latency, cost and more."""
+    import json
+
+    from .summary import run_summary
+
+    try:
+        rd = load_run(get_factory(), run_id)
+        data = run_summary(rd)
+        if model:
+            rd.pick_model(model)
+            data["models"] = {model: data["models"][model]}
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    if as_json:
+        typer.echo(json.dumps(data, indent=2, default=str))
+        return
+
+    pct = lambda x: "-" if x is None else f"{x:.1%}"
+    console.print(f"Run {data['run_id']}  dataset {data['dataset']} ({data['dataset_version']})  status: {data['status']}")
+    for name, m in data["models"].items():
+        t = Table(title=name)
+        for col in ["Group", "Cases", "Pass rate", "95% interval"]:
+            t.add_column(col)
+        for label, s in [("overall", m["overall"]), *m["by_task"].items()]:
+            t.add_row(label, str(s["n"]), pct(s["rate"]), "-" if s["ci"] is None else f"{s['ci'][0]:.1%} to {s['ci'][1]:.1%}")
+        console.print(t)
+        o = m["operations"]
+        ms = lambda v: "-" if v is None else f"{v / 1000:.2f} s"
+        console.print(f"Latency P50 {ms(o['latency_ms'][50])}, P95 {ms(o['latency_ms'][95])}, P99 {ms(o['latency_ms'][99])}. "
+                      f"Call failures {pct(o['call_failure_rate'])}. Retries {pct(o['retry_rate'])}. "
+                      f"Cost per success {'unknown' if o['cost_per_success_usd'] is None else '$%.4f' % o['cost_per_success_usd']}.")
+        left = m["left_out"]
+        if left["skipped_cases"] or left["evaluator_errors"]:
+            console.print(f"[yellow]Left out of the rates: {left['skipped_cases']} skipped case(s), "
+                          f"{left['evaluator_errors']} evaluator problem(s).[/yellow]")
+        if m["weak_slices"]:
+            console.print("[bold]Weak slices[/bold] (clearly lower than the other cases):")
+            for s in m["weak_slices"]:
+                console.print(f"  {s['dimension']} = {s['value']}: {pct(s['rate'])} against {pct(s['rest_rate'])} (n={s['n']})")
+        if "hallucination" in m:
+            h = m["hallucination"]
+            console.print(f"Claims: {h['total']} checked. Supported {pct(h['ec'])}, unsupported {pct(h['ucr'])}, "
+                          f"contradicted {pct(h['cr'])}, could not judge {pct(h['unassessed_rate'])}.")
+        if m["needs_human_review"]:
+            console.print(f"[yellow]{m['needs_human_review']} result(s) need a person to check them. Use 'trustbench show'.[/yellow]")
+        if "calibration" in m:
+            console.print(f"Calibration: run 'trustbench calibration {data['run_id']}' for details.")
