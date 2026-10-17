@@ -6,7 +6,6 @@ The model in these checks is the demo model, made perfect (the "oracle") or made
 import copy
 import datetime as dt
 import json
-import random
 
 from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import sessionmaker
@@ -16,14 +15,13 @@ from ..comparison import compare_runs
 from ..dataprotect import update_policy
 from ..datasets import CaseSpec, import_dataset
 from ..db import EvaluationResult, ModelResponse, ProductionTrace, TestCase, init_db, make_engine
-from ..demo import PROFILES, DemoProvider, Profile, demo_cases
+from ..demo import DemoProvider, Profile, demo_cases
 from ..engine import RunOptions, rescore, resume_run, run_eval
 from ..failures import collect_failures
 from ..gate import evaluate_gate
 from ..policy import ReleasePolicy, Rule
 from ..providers import MockProvider
 from ..rag import diagnose
-from ..report import case_rows
 from ..robustness import robustness_report
 from ..rundata import Record, RunData, load_run
 from ..slices import regression_scan
@@ -292,7 +290,7 @@ def _dump(factory) -> str:
     parts = []
     with factory() as s:
         for table in inspect(factory.kw["bind"]).get_table_names():
-            for row in s.execute(text(f'SELECT * FROM "{table}"')).fetchall():
+            for row in s.execute(text(f'SELECT * FROM "{table}"')).fetchall():  # noqa: S608 - names come from the database itself
                 parts.extend(str(v) for v in row if v is not None)
     return "\n".join(parts)
 
@@ -347,7 +345,7 @@ def isolation(ctx: Ctx):
         with factory() as s:
             v = import_dataset(s, f"{name}-data", dataset, ws.id)
         provider = MockProvider({"Question": "yes"})
-        rid = run_eval(factory, v.id, ["mock:m"], RunOptions(backoff=0), provider_factory=lambda n: provider, workspace_id=ws.id)
+        rid = run_eval(factory, v.id, ["mock:m"], RunOptions(backoff=0), provider_factory=lambda n, p=provider: p, workspace_id=ws.id)
         ingest(factory, ws.id, [TraceIn(trace_id=f"{name}-t{i}", name="bot") for i in range(5)])
         world.append({"name": name, "key": key, "run": rid, "traces": [f"{name}-t{i}" for i in range(5)], "dataset": v.id})
     client = TestClient(create_app(factory))

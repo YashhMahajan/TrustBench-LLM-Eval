@@ -4,10 +4,11 @@ Every route needs a key. A key sees the runs, datasets and proposals of its own 
 """
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import sessionmaker
 
-from . import __version__, baselines, proposals as prop
+from . import __version__, proposals as prop
 from .calibration import calibration_from_records
 from .comparison import compare_runs
 from .db import (
@@ -25,8 +26,7 @@ from .quality import check as check_dataset
 from .rag import diagnose
 from .report import case_detail
 from .robustness import robustness_report
-from .rundata import RunData, case_outcomes, load_run
-from .scorecard import scorecard
+from .rundata import load_run
 from .slices import find_slices, regression_scan
 from .summary import run_summary
 from .tenancy import Principal, owned
@@ -199,7 +199,7 @@ def register(app: FastAPI, need, db) -> None:
             raise
         except KeyError:
             raise HTTPException(400, 'The body needs {"run": "..."} and may have "baseline", "model" and "policy".')
-        except Exception as e:
+        except (ValidationError, ValueError, TypeError) as e:    # The caller's policy or ids are wrong. Say how.
             raise HTTPException(422, str(e)[:300])
         return {"policy": policy.model_dump(), "decision": decision.to_dict()}
 

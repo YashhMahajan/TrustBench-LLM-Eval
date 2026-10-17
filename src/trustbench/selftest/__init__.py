@@ -11,7 +11,7 @@ Run it with: trustbench selftest        (add --quick for a faster run with fewer
 import random
 import time
 import traceback
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable
 
 

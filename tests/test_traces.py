@@ -7,7 +7,7 @@ from trustbench.dataprotect import update_policy
 from trustbench.db import TraceSpan
 from trustbench.tenancy import create_workspace
 from trustbench.traces import (
-    MAX_BATCH, IngestResult, SpanIn, TraceIn, count_traces, delete_trace, get_trace, ingest, is_sampled, list_traces,
+    MAX_BATCH, SpanIn, TraceIn, count_traces, delete_trace, get_trace, ingest, is_sampled, list_traces,
     purge_expired, reveal,
 )
 

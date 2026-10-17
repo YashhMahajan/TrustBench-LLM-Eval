@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { API_URL, KEY_COOKIE } from "@/lib/api";
+import { API_URL, KEY_COOKIE, forwarded } from "@/lib/api";
 
 /** Hands the Markdown report of a run to the browser. The key stays on the server side. */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -8,7 +8,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!key) return new Response("Sign in first.", { status: 401 });
   const model = new URL(request.url).searchParams.get("model");
   const res = await fetch(`${API_URL}/v1/runs/${encodeURIComponent(id)}/report${model ? `?model=${encodeURIComponent(model)}` : ""}`, {
-    headers: { Authorization: `Bearer ${key}` },
+    headers: { Authorization: `Bearer ${key}`, ...(await forwarded()) },
     cache: "no-store",
   }).catch(() => null);
   if (!res) return new Response("The TrustBench server is not answering.", { status: 502 });

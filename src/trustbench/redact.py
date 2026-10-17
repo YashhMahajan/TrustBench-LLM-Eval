@@ -64,6 +64,6 @@ def redact(text: str, custom: list[str] | None = None) -> tuple[str, dict[str, i
         text = sub(kind, pattern, text)
     text = sub("CARD_NUMBER", _CARD, text, lambda s: 13 <= len(re.sub(r"\D", "", s)) <= 19 and luhn_ok(re.sub(r"\D", "", s)))
     text = sub("PHONE", _PHONE, text)
-    for i, pattern in enumerate(compile_custom(custom or [])):
+    for pattern in compile_custom(custom or []):
         text = sub("CUSTOM", pattern, text)
     return text, dict(counts)

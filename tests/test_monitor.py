@@ -12,7 +12,7 @@ from trustbench.dataprotect import update_policy
 from trustbench.db import TraceEvaluation, init_db, make_engine
 from trustbench.monitor import monitor_summary
 from trustbench.tenancy import create_api_key, create_workspace
-from trustbench.traces import SpanIn, TraceIn, get_trace, ingest
+from trustbench.traces import TraceIn, get_trace, ingest
 
 NOW = dt.datetime(2025, 6, 30, 12, 0)
 
@@ -97,7 +97,6 @@ def test_without_any_online_evaluator_the_quality_gaps_say_so(factory, ws):
 
 
 def test_api_and_command(factory, ws, tmp_path, monkeypatch):
-    from trustbench.db import utcnow
     ingest(factory, ws.id, [TraceIn(trace_id="t1", name="bot", duration_ms=300, output="a", status="error"), TraceIn(trace_id="t2", name="bot", duration_ms=500, output="b")])
     _, token = create_api_key(factory, ws.id, "r", "read")
     client = TestClient(create_app(factory))

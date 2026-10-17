@@ -10,13 +10,11 @@ A case needs stored text, so the workspace must have store_content on. The text 
 redacted. If personal data is still found in it, the case is refused.
 """
 
-import json
 from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
-from . import crypto
 from .datasets import CaseSpec, validate
 from .db import ProductionTrace, ProposedCase, TraceEvaluation, Workspace
 from .dataprotect import policy_of

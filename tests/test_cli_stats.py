@@ -1,7 +1,6 @@
 import pytest
 from typer.testing import CliRunner
 
-from test_engine import ANSWERS
 from trustbench.cli import app
 from trustbench.datasets import CaseSpec, import_dataset
 from trustbench.db import init_db, make_engine

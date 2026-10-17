@@ -1,7 +1,6 @@
 """Every built-in suite must be clean and must run from start to finish."""
 
 import json
-from pathlib import Path
 
 import pytest
 

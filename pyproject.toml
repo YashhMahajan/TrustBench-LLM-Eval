@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "ruff>=0.6"]
 redis = ["redis>=5"]
 
 [project.scripts]
@@ -38,3 +38,13 @@ packages = ["src/trustbench"]
 testpaths = ["tests"]
 pythonpath = ["tests"]
 filterwarnings = ["ignore:Using .httpx. with .starlette.testclient", "error::pytest.PytestUnhandledThreadExceptionWarning"]
+
+# Rules that find real bugs: unused names, late-binding closures, hidden exceptions, unsafe patterns.
+# B008/B904/B905 are off on purpose: typer needs calls in defaults, the CLI and API turn errors into exit codes
+# and HTTP answers, and our zip() calls pair lists that are built to be equal in length.
+[tool.ruff.lint]
+select = ["F", "B", "S", "E9"]
+ignore = ["B008", "B904", "B905", "S101", "S311", "S110", "S105", "S106"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "B"]

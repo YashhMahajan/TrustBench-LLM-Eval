@@ -1,6 +1,6 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { API_URL, KEY_COOKIE } from "@/lib/api";
+import { API_URL, KEY_COOKIE, forwarded } from "@/lib/api";
 import { Mark } from "@/components/Icons";
 
 async function signIn(formData: FormData) {
@@ -8,13 +8,13 @@ async function signIn(formData: FormData) {
   const key = String(formData.get("key") ?? "").trim();
   let state = "bad";
   try {
-    const res = await fetch(`${API_URL}/v1/me`, { headers: { Authorization: `Bearer ${key}` }, cache: "no-store" });
+    const res = await fetch(`${API_URL}/v1/me`, { headers: { Authorization: `Bearer ${key}`, ...(await forwarded()) }, cache: "no-store" });
     state = res.ok ? "ok" : "bad";
   } catch {
     state = "down";
   }
   if (state === "ok") {
-    (await cookies()).set(KEY_COOKIE, key, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 7 });
+    (await cookies()).set(KEY_COOKIE, key, { httpOnly: true, sameSite: "lax", secure: (await headers()).get("x-forwarded-proto") === "https", path: "/", maxAge: 60 * 60 * 24 * 7 });
     redirect("/");
   }
   redirect(`/login?error=${state}`);

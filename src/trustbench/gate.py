@@ -15,8 +15,8 @@ from dataclasses import asdict, dataclass, field
 from .comparison import compare_records
 from .operations import operations
 from .policy import ReleasePolicy
-from .rundata import Record, RunData, case_outcomes
-from .scorecard import rate_score, scorecard
+from .rundata import RunData, case_outcomes
+from .scorecard import scorecard
 from .stats import bootstrap_ci, percentile, wilson_interval
 
 MIN_LATENCY_SAMPLES = 20

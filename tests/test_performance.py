@@ -9,7 +9,7 @@ from sqlalchemy import event
 from trustbench import quality, report
 from trustbench.datasets import CaseSpec
 from trustbench.rundata import Record, RunData
-from test_engine import ANSWERS, go
+from test_engine import go
 from trustbench.providers import MockProvider
 
 

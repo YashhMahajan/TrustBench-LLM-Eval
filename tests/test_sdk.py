@@ -29,7 +29,7 @@ def test_a_trace_reaches_the_server_with_spans_in_a_tree(env):
     tb = sdk(env)
     with tb.trace("support-bot", model="gpt-4o-mini", tags={"plan": "pro"}) as t:
         t.input = "How long do refunds take?"
-        with t.span("search", kind="retrieval", hits=3) as outer:
+        with t.span("search", kind="retrieval", hits=3):
             with t.span("rerank", kind="other"):
                 pass
         t.output = "30 days."

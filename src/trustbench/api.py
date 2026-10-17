@@ -6,6 +6,7 @@ A key sees only its own workspace. Roles: read < write < admin.
 
 import datetime as dt
 import json
+import logging
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
@@ -15,12 +16,13 @@ from sqlalchemy.orm import sessionmaker
 from . import __version__, audit, traces as tr
 from .cli_common import get_factory
 from .crypto import DecryptionError, SecretKeyMissing
-from .dataprotect import PolicyProblem, DataPolicy, policy_of, update_policy
+from .dataprotect import PolicyProblem, policy_of, update_policy
 from .db import Workspace
 from .ratelimit import RateLimiter
 from .tenancy import Principal, authenticate
+from .web_security import MAX_BODY_BYTES, BodyLimit, SecurityHeaders, client_ip, parse_trusted
 
-MAX_BODY_BYTES = 5 * 1024 * 1024
+log = logging.getLogger("trustbench")
 
 
 def _iso(t: dt.datetime | None) -> str | None:
@@ -40,11 +42,16 @@ def trace_json(row, spans=None) -> dict:
     return d
 
 
-def create_app(factory: sessionmaker | None = None, rate_limit: int | None = None, bad_key_limit: int = 30, clock=None) -> FastAPI:
+def create_app(factory: sessionmaker | None = None, rate_limit: int | None = None, bad_key_limit: int = 30, clock=None,
+               trusted_proxies: str | None = None, max_body_bytes: int = MAX_BODY_BYTES) -> FastAPI:
     """rate_limit: requests for each key each minute. Default from TRUSTBENCH_RATE_LIMIT, or 600. 0 turns it off.
-    bad_key_limit: wrong keys from one address each minute before that address is locked for a while."""
+    bad_key_limit: wrong keys from one address each minute before that address is locked for a while.
+    trusted_proxies: proxies whose X-Forwarded-For we believe. Default from TRUSTBENCH_TRUSTED_PROXIES. Empty: none."""
     import os
     app = FastAPI(title="TrustBench", version=__version__, docs_url="/docs", redoc_url=None)
+    app.add_middleware(BodyLimit, max_bytes=max_body_bytes)
+    app.add_middleware(SecurityHeaders)
+    trusted = parse_trusted(trusted_proxies if trusted_proxies is not None else os.environ.get("TRUSTBENCH_TRUSTED_PROXIES"))
     app.state.factory = factory
     limit = rate_limit if rate_limit is not None else int(os.environ.get("TRUSTBENCH_RATE_LIMIT", "600"))
     extra = {"clock": clock} if clock else {}
@@ -58,7 +65,7 @@ def create_app(factory: sessionmaker | None = None, rate_limit: int | None = Non
     def principal(request: Request, f: sessionmaker = Depends(db)) -> Principal:
         header = request.headers.get("authorization", "")
         token = header[7:].strip() if header.lower().startswith("bearer ") else request.headers.get("x-api-key")
-        ip = request.client.host if request.client else "unknown"
+        ip = client_ip(request.client.host if request.client else None, request.headers.get("x-forwarded-for"), trusted)
         wait = bad_keys.blocked(ip)
         if wait:
             raise HTTPException(429, "Too many wrong keys from this address. Try again later.", headers={"Retry-After": str(int(wait) + 1)})
@@ -82,17 +89,19 @@ def create_app(factory: sessionmaker | None = None, rate_limit: int | None = Non
     async def http_error(_, exc: HTTPException):
         return JSONResponse({"error": exc.detail}, status_code=exc.status_code, headers=exc.headers)
 
+    @app.exception_handler(Exception)
+    async def unexpected(request: Request, exc: Exception):
+        # The details go to the log. The caller gets no file names, no SQL, no values.
+        log.exception("Unhandled error in %s %s", request.method, request.url.path)
+        return JSONResponse({"error": "Internal error. The server wrote the details to its log."}, status_code=500)
+
     @app.get("/v1/health")
     def health():
         return {"status": "ok", "version": __version__}
 
     @app.post("/v1/traces", status_code=202)
     async def post_traces(request: Request, p: Principal = Depends(need("write")), f: sessionmaker = Depends(db)):
-        if int(request.headers.get("content-length") or 0) > MAX_BODY_BYTES:
-            raise HTTPException(413, f"The request is larger than {MAX_BODY_BYTES // 1024 // 1024} MB. Send smaller batches.")
-        body = await request.body()
-        if len(body) > MAX_BODY_BYTES:
-            raise HTTPException(413, f"The request is larger than {MAX_BODY_BYTES // 1024 // 1024} MB. Send smaller batches.")
+        body = await request.body()                 # The size limit is enforced by the BodyLimit middleware.
         try:
             raw = json.loads(body)
             items = raw["traces"]

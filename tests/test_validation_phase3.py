@@ -8,7 +8,6 @@ import random
 
 import pytest
 
-from trustbench import report
 from trustbench.comparison import compare_records, compare_runs
 from trustbench.datasets import CaseSpec, import_dataset
 from trustbench.engine import RunOptions, run_eval

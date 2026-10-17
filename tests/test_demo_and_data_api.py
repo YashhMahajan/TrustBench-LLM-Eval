@@ -1,12 +1,10 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from trustbench import crypto
 from trustbench.api import create_app
-from trustbench.demo import DemoProvider, PROFILES, demo_cases, make_demo
+from trustbench.demo import DemoProvider, demo_cases, make_demo
 from trustbench.engine import RunOptions, run_eval
 from trustbench.datasets import import_dataset
-from trustbench.gate import evaluate_gate
 from trustbench.tenancy import TenancyError, create_api_key, create_workspace
 
 

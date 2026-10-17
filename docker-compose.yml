@@ -35,6 +35,8 @@ services:
       TRUSTBENCH_DATABASE_URL: postgresql+psycopg://trustbench:${POSTGRES_PASSWORD:-trustbench}@postgres:5432/trustbench
       TRUSTBENCH_SECRET_KEY: ${TRUSTBENCH_SECRET_KEY:-}
       TRUSTBENCH_REDIS_URL: ${TRUSTBENCH_REDIS_URL:-}
+      # The dashboard connects from the Docker network. We believe its X-Forwarded-For (the visitor's address).
+      TRUSTBENCH_TRUSTED_PROXIES: ${TRUSTBENCH_TRUSTED_PROXIES:-172.16.0.0/12,10.0.0.0/8,192.168.0.0/16}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}

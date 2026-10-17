@@ -39,7 +39,7 @@ class Provider(ABC):
     @abstractmethod
     async def generate(self, req: GenRequest) -> GenResponse: ...
 
-    async def aclose(self) -> None:
+    async def aclose(self) -> None:  # noqa: B027 - most providers hold nothing to close
         """Free the network connections. The engine calls this when the run ends."""
 
 

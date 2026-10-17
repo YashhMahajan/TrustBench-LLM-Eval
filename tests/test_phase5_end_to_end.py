@@ -4,21 +4,16 @@ import json
 
 from fastapi.testclient import TestClient
 
-from helpers import FnProvider
 from trustbench import crypto, proposals, report
 from trustbench.api import create_app
-from trustbench.baselines import save_decision
 from trustbench.dataprotect import update_policy
 from trustbench.datasets import import_dataset, load_cases
 from trustbench.engine import RunOptions, run_eval
-from trustbench.gate import evaluate_gate
 from trustbench.handlers import default_handlers
 from trustbench.jobs import DbQueue, run_worker
 from trustbench.monitor import monitor_summary
-from trustbench.policy import ReleasePolicy, Rule
 from trustbench.production_tests import flagged_traces, promote
 from trustbench.providers import MockProvider
-from trustbench.rundata import load_run
 from trustbench.sdk import TrustBench
 from trustbench.tenancy import create_api_key, create_workspace
 
@@ -63,8 +58,8 @@ def test_a_production_failure_becomes_a_test_that_guards_the_next_release(factor
     with factory() as s:
         version = import_dataset(s, "regression", load_cases(path))
 
-    # 6. The next release is tested against the old failure. The gate blocks the old behaviour and allows the fix.
-    policy = ReleasePolicy(min_cases=1, critical_failures_allowed=None, overall=Rule(minimum_score=0.0))
+    # 6. The next release is tested against the old failure: the new case fails for the old behaviour and passes for the fix.
+    #    (One case cannot give a gate verdict: the gate says 'inconclusive' for n=1, so we check the case result.)
     bad, good = MockProvider({"Where is order": "Sorry, I am very sorry, I do not know where it is."}), MockProvider({"Where is order": "Shipped yesterday."})
     outcomes = {}
     for label, provider in (("bad", bad), ("good", good)):

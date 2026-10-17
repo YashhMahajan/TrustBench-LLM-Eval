@@ -209,7 +209,7 @@ def make_demo(factory: sessionmaker, workspace: str = "demo", scale: float = 1.0
     try:
         ws = create_workspace(factory, workspace)
     except TenancyError:
-        raise TenancyError(f"The workspace '{workspace}' exists already. Use another name with --workspace, or a new database.")
+        raise TenancyError(f"The workspace '{workspace}' exists already. Use another name with --workspace, or a new database.") from None
     _, token = create_api_key(factory, ws.id, "demo-admin", "admin")
     result = DemoResult(ws.id, token)
     cases = demo_cases()

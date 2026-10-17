@@ -15,10 +15,12 @@ No key? Try the demo: `trustbench run --model mock:smoke`
 
 | Command | Action |
 |---|---|
-| `trustbench run` | Run a dataset against your models |
+| `trustbench run` | Run a dataset against your models. Useful flags: `--rpm N` (rate limit), `--budget USD`, `--no-cache`, `--reps N` |
 | `trustbench results RUN_ID` | Show the result of each case |
 | `trustbench show RUN_ID CASE_ID` | Explain one case: answer, scores, reasons, claims |
 | `trustbench rescore RUN_ID` | Score stored outputs again. No model calls. |
+| `trustbench resume RUN_ID` | Finish a run that stopped (Ctrl-C, crash, budget). Finished cases are not called again. |
+| `trustbench cache stats / clear` | Stored model answers. A repeated request costs nothing. |
 | `trustbench check DATASET` | Find duplicates, conflicts, missing references, personal data |
 | `trustbench annotations export RUN_ID` | Write a CSV for human labels |
 | `trustbench annotations import FILE --annotator NAME` | Store the human labels |
@@ -195,6 +197,7 @@ A reliability tool must show that its own numbers are valid. `trustbench selftes
 - each kind of injected failure (invalid JSON, a faulty prompt, a wrong reference, lost evidence, abstention) is named, blamed on the right stage and never allowed through the gate
 - test copies never change the right answer. Planted dataset defects are found
 - the rules that make results auditable hold. Workspaces cannot read each other. Retention is exact. No task is lost when a worker dies
+- a repeated or resumed run never pays for the same model call twice
 
 The targets are fixed from theory before the numbers are seen. The checks are themselves tested by breaking the code on purpose: each check must fail when the code it watches is wrong. The self-test has already found two real flaws, which are fixed: PSI drift was too high on small samples, and a bootstrap interval claimed certainty when 8 of 8 cases moved the same way.
 
@@ -249,3 +252,22 @@ A judge can be wrong. Label some answers by hand, then run `validate-judge` to s
 | `TRUSTBENCH_DATABASE_URL` | Database. Default: the Postgres from `docker-compose.yml` |
 | `TRUSTBENCH_LOCAL_BASE_URL` | URL of a local OpenAI-compatible server (`local:` models) |
 | `TRUSTBENCH_PRICES` | JSON that sets prices: `{"model": [input, output]}` per 1M tokens |
+| `TRUSTBENCH_TRUSTED_PROXIES` | Proxies (addresses or networks, separated by commas) whose `X-Forwarded-For` header we believe. Default: none. Set it when a proxy or the dashboard sits in front of the API, or all visitors look like one address |
+| `TRUSTBENCH_RATE_LIMIT` | Requests for each API key each minute. Default 600. 0 turns it off |
+
+## Speed
+
+A 20,000-case run is saved in 2.7 seconds (it was 17). A list of runs answers in 30 ms (it was 43 s). Details, numbers and the reasons are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+The mistakes we found and fixed, written as a guide for learning, are in [docs/LEARNING.md](docs/LEARNING.md).
+
+## What it does well, and what it does not
+
+**Strong:** statistics you can defend (Wilson and paired intervals, McNemar, multiple-test control), a release gate that says "inconclusive" or "incomplete" instead of guessing,
+judge validation against human labels, robustness tests, calibration, failure analysis by stage, a loop from production to tests, privacy by default (measurements only, redaction, encryption),
+multi-tenant keys, and a self-test that proves the numbers and is itself tested by breaking the code.
+
+**Narrower than other tools:** no multi-turn or agent tests, fewer public benchmarks than lm-evaluation-harness or Inspect AI, no red-team prompt generator, no declarative YAML test file like Promptfoo,
+and no community or plugin ecosystem.
+
+**Not verified here:** a call to a live provider (no key was used), a real PostgreSQL server, a real Redis server, the Docker images (the files are checked, not built), and the changed dashboard files
+(the cookie flag, forwarded address and security headers were written but the dashboard was not rebuilt). Run `trustbench selftest` and `pytest` first on your machine, then try one small real run.

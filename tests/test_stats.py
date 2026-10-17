@@ -2,7 +2,7 @@ import random
 
 import pytest
 
-from trustbench.stats import bootstrap_ci, mean, percentile
+from trustbench.stats import bootstrap_ci, percentile
 
 
 def test_percentile_interpolates():

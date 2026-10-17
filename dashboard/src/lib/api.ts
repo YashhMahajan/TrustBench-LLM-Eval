@@ -1,11 +1,18 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export const API_URL = (process.env.TRUSTBENCH_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
 export const KEY_COOKIE = "tb_key";
 
 export class Unreachable extends Error {}
+
+/** Pass on the address of the visitor. The server counts wrong keys for each address, so without this
+ *  all visitors would look like one address (this server) and could lock each other out. */
+export async function forwarded(): Promise<Record<string, string>> {
+  const xff = (await headers()).get("x-forwarded-for");
+  return xff ? { "X-Forwarded-For": xff } : {};
+}
 
 /** Call the TrustBench server with the key from the cookie. The key never reaches the browser. */
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -15,7 +22,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     res = await fetch(API_URL + path, {
       ...init,
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", ...init?.headers },
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", ...(await forwarded()), ...init?.headers },
       cache: "no-store",
     });
   } catch {

@@ -1,5 +1,4 @@
 from test_engine import ANSWERS, go
-from trustbench.engine import RunOptions
 from trustbench.providers import MockProvider
 from trustbench.rundata import Record, case_outcomes, load_run
 import pytest

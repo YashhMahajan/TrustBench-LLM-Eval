@@ -1,6 +1,5 @@
 import random
 
-import pytest
 
 from trustbench.gate import evaluate_gate
 from trustbench.policy import ReleasePolicy, Rule

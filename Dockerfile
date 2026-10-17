@@ -6,9 +6,10 @@ FROM python:3.12-slim
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
+# requirements.lock holds the exact versions we tested. A new release of a library cannot change what we ship.
+COPY pyproject.toml README.md requirements.lock ./
 COPY src ./src
-RUN pip install ".[redis]"
+RUN pip install -c requirements.lock ".[redis]"
 
 # Do not run as root.
 RUN useradd --create-home --uid 10001 trustbench

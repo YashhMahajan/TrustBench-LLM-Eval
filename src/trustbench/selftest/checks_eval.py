@@ -5,7 +5,7 @@ import json
 import random
 import string
 
-from ..agreement import cohens_kappa, percent_agreement, weighted_kappa
+from ..agreement import weighted_kappa
 from ..datasets import CaseSpec
 from ..evaluators import evaluate
 from ..judge import RUBRICS, Judge

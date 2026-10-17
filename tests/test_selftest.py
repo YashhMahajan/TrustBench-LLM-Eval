@@ -4,7 +4,7 @@ import pytest
 from typer.testing import CliRunner
 
 from trustbench.cli import app
-from trustbench.selftest import REGISTRY, Result, run_selftest
+from trustbench.selftest import run_selftest
 
 
 def by_name(results):
@@ -151,8 +151,6 @@ def test_a_dataset_check_that_cries_wolf_is_noticed(monkeypatch):
 
 
 def test_broken_data_rules_are_noticed(monkeypatch):
-    from trustbench import engine
-    real = engine.rescore
 
     def rescore_with_a_call(factory, run_id, judge_spec=None, provider_factory=None):
         raise RuntimeError("re-scoring touched the model")
@@ -161,7 +159,6 @@ def test_broken_data_rules_are_noticed(monkeypatch):
 
 
 def test_a_leak_of_personal_data_is_noticed(monkeypatch):
-    from trustbench import traces
     from trustbench.dataprotect import Protected
     import hashlib
     broken(monkeypatch, "trustbench.traces.redact", lambda text, custom=None: (text, {}))
@@ -182,7 +179,7 @@ def test_retention_that_deletes_nothing_is_noticed(monkeypatch):
 
 def test_a_queue_that_forgets_dead_workers_is_noticed(monkeypatch):
     from sqlalchemy import select
-    from trustbench.db import JobRow, utcnow
+    from trustbench.db import JobRow
     from trustbench.jobs import DbQueue, Job
 
     def claim_new_only(self, worker_id, kinds=None, lease_seconds=120):
@@ -269,11 +266,10 @@ def test_a_cache_that_never_hits_is_noticed(monkeypatch):
 
 
 def test_a_resume_that_starts_over_is_noticed(monkeypatch):
-    from trustbench.engine import RunOptions, run_eval
 
     def starts_over(factory, run_id, provider_factory=None, progress=None, budget_usd=None):
-        from trustbench.db import EvaluationRun, TestCase, TestExecution
-        from sqlalchemy import select, update
+        from trustbench.db import TestExecution
+        from sqlalchemy import update
         with factory.begin() as s:                              # Wrongly puts every case back to work, finished or not.
             s.execute(update(TestExecution).where(TestExecution.run_id == run_id).values(status="skipped"))
         from trustbench import engine
