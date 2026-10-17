@@ -39,3 +39,27 @@ def bootstrap_ci(values, stat=mean, n_boot: int = 2000, alpha: float = 0.05, see
     n = len(values)
     stats = [stat(rng.choices(values, k=n)) for _ in range(n_boot)]
     return percentile(stats, 100 * alpha / 2), percentile(stats, 100 * (1 - alpha / 2))
+
+
+def binomial_tail(n: int, k: int) -> float:
+    """P(X >= k) for X ~ Binomial(n, 0.5)."""
+    if k <= 0:
+        return 1.0
+    return sum(math.comb(n, i) for i in range(k, n + 1)) / 2 ** n
+
+
+def mcnemar_exact(a_only: int, b_only: int, alternative: str = "two-sided") -> float:
+    """Exact McNemar test for two systems that answered the same cases.
+
+    a_only = cases A passed and B failed. b_only = cases B passed and A failed.
+    Cases where both agree carry no information, so only these two counts matter.
+    alternative: 'two-sided', 'b_worse' (A beats B) or 'b_better'.
+    """
+    n = a_only + b_only
+    if n == 0:
+        return 1.0
+    if alternative == "b_worse":
+        return binomial_tail(n, a_only)
+    if alternative == "b_better":
+        return binomial_tail(n, b_only)
+    return min(1.0, 2 * binomial_tail(n, max(a_only, b_only)))
