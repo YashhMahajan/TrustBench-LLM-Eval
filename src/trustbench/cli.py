@@ -188,3 +188,40 @@ def validate_judge_cmd(run_id: str, dimension: str = typer.Option("correctness",
     console.print(t)
     for w in v.warnings:
         console.print(f"[yellow]{w}[/yellow]")
+
+
+@app.command("judge-bias")
+def judge_bias_cmd(
+    judge: str = typer.Option(..., help="provider:model of the judge to test"),
+    dataset: str = typer.Option("factual", help="Dataset with reference answers"),
+    max_cases: int = typer.Option(20, help="Use at most this many cases"),
+):
+    """Test a judge for position bias, length bias and sensitivity to wording."""
+    import asyncio
+
+    from .engine import make_judge
+    from .judge import RUBRICS
+    from .judge_bias import run_bias_probes
+    from .providers import get_provider
+
+    try:
+        cases = load_cases(resolve_path(dataset))
+        j = make_judge(judge, get_provider)
+    except (DatasetError, ValueError) as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    r = asyncio.run(run_bias_probes(j, cases, RUBRICS["correctness"], max_cases))
+    t = Table(title=f"Judge bias probes: {judge}")
+    for col in ["Probe", "Result", "Ideal"]:
+        t.add_column(col)
+
+    def pct(x):
+        return "-" if x is None else f"{x:.0%}"
+
+    t.add_row("Position: pick changes with order", pct(r.position_inconsistency), "0%")
+    t.add_row("Position: reference answer wins", pct(r.correct_pick_rate), "100%")
+    t.add_row("Length: score change from padding", "-" if r.verbosity_mean_delta is None else f"{r.verbosity_mean_delta:+.2f}", "0")
+    t.add_row("Wording: score change from rewording", "-" if r.wording_mean_abs_change is None else f"{r.wording_mean_abs_change:.2f}", "0")
+    console.print(t)
+    if r.errors:
+        console.print(f"[yellow]{r.errors} probe(s) skipped because the judge reply was not readable.[/yellow]")
