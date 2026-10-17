@@ -67,12 +67,13 @@ def run_eval(
     specs: list[str],
     options: RunOptions | None = None,
     provider_factory: Callable[[str], Provider] = get_provider,
+    workspace_id: str | None = None,
 ) -> str:
     """Generate new outputs and score them. Returns the run id."""
-    return asyncio.run(_run(factory, dataset_version_id, specs, options or RunOptions(), provider_factory))
+    return asyncio.run(_run(factory, dataset_version_id, specs, options or RunOptions(), provider_factory, workspace_id))
 
 
-async def _run(factory, dataset_version_id, specs, opt: RunOptions, provider_factory) -> str:
+async def _run(factory, dataset_version_id, specs, opt: RunOptions, provider_factory, workspace_id=None) -> str:
     providers: dict[str, Provider] = {}
     model_ids: dict[str, int] = {}
     params = {"temperature": opt.temperature, "max_tokens": opt.max_tokens}
@@ -91,7 +92,7 @@ async def _run(factory, dataset_version_id, specs, opt: RunOptions, provider_fac
                 s.flush()
             model_ids[spec] = mc.id
         s.add(EvaluationRun(
-            id=run_id, name=opt.name, dataset_version_id=dataset_version_id,
+            id=run_id, workspace_id=workspace_id, name=opt.name, dataset_version_id=dataset_version_id,
             config_snapshot={"models": specs, "options": asdict(opt)}, software_version=__version__))
         cases = s.scalars(select(TestCase).where(TestCase.dataset_version_id == dataset_version_id)).all()
         if _needs_judge(cases) and not opt.judge:

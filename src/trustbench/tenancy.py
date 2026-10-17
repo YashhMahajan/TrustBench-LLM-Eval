@@ -118,3 +118,9 @@ def list_api_keys(factory: sessionmaker, workspace_id: str | None = None) -> lis
         if workspace_id:
             q = q.where(ApiKey.workspace_id == workspace_id)
         return list(s.scalars(q))
+
+
+def owned(column, ws: Workspace):
+    """A filter for the rows of a workspace. Old rows without a workspace belong to the workspace 'default'."""
+    from sqlalchemy import or_
+    return or_(column == ws.id, column.is_(None)) if ws.name == DEFAULT_WORKSPACE else column == ws.id

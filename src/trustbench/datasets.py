@@ -92,15 +92,16 @@ def content_hash(cases: list[CaseSpec]) -> str:
     return hashlib.sha256(canonical.encode()).hexdigest()[:16]
 
 
-def import_dataset(session: Session, name: str, cases: list[CaseSpec]) -> DatasetVersion:
+def import_dataset(session: Session, name: str, cases: list[CaseSpec], workspace_id: str | None = None) -> DatasetVersion:
     """Store the cases. The same content gives the same version. Nothing is overwritten."""
     h = content_hash(cases)
     existing = session.scalar(
-        select(DatasetVersion).where(DatasetVersion.name == name, DatasetVersion.content_hash == h)
+        select(DatasetVersion).where(DatasetVersion.name == name, DatasetVersion.content_hash == h,
+                                     DatasetVersion.workspace_id == workspace_id if workspace_id else DatasetVersion.workspace_id.is_(None))
     )
     if existing:
         return existing
-    version = DatasetVersion(name=name, content_hash=h, case_count=len(cases))
+    version = DatasetVersion(name=name, content_hash=h, case_count=len(cases), workspace_id=workspace_id)
     session.add(version)
     session.flush()
     for c in cases:

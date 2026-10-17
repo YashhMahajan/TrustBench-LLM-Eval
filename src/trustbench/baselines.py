@@ -9,15 +9,15 @@ from .gate import Decision
 from .policy import ReleasePolicy
 
 
-def set_baseline(factory: sessionmaker, name: str, run_id: str, model: str | None = None) -> None:
+def set_baseline(factory: sessionmaker, name: str, run_id: str, model: str | None = None, workspace_id: str | None = None) -> None:
     with factory.begin() as s:
         if s.get(EvaluationRun, run_id) is None:
             raise ValueError(f"No run '{run_id}'.")
         row = s.get(Baseline, name)
         if row:
-            row.run_id, row.model = run_id, model
+            row.run_id, row.model, row.workspace_id = run_id, model, workspace_id or row.workspace_id
         else:
-            s.add(Baseline(name=name, run_id=run_id, model=model))
+            s.add(Baseline(name=name, run_id=run_id, model=model, workspace_id=workspace_id))
 
 
 def list_baselines(factory: sessionmaker) -> list[Baseline]:

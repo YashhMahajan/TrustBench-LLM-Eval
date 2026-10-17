@@ -39,9 +39,10 @@ class DatasetVersion(Base):
     """An immutable snapshot. The hash comes from the content of the cases."""
 
     __tablename__ = "dataset_versions"
-    __table_args__ = (UniqueConstraint("name", "content_hash"),)
+    __table_args__ = (UniqueConstraint("name", "content_hash", "workspace_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(200))
     content_hash: Mapped[str] = mapped_column(String(64))
     case_count: Mapped[int] = mapped_column(Integer)
@@ -78,6 +79,7 @@ class EvaluationRun(Base):
     __tablename__ = "evaluation_runs"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    workspace_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     dataset_version_id: Mapped[int] = mapped_column(ForeignKey("dataset_versions.id"))
     # running | complete | incomplete
@@ -161,6 +163,7 @@ class Baseline(Base):
     __tablename__ = "baselines"
 
     name: Mapped[str] = mapped_column(String(100), primary_key=True)
+    workspace_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     run_id: Mapped[str] = mapped_column(ForeignKey("evaluation_runs.id"))
     model: Mapped[str | None] = mapped_column(String(250), nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)

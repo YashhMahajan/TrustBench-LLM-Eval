@@ -349,3 +349,20 @@ def monitor(workspace: str = typer.Argument("default"), days: float = typer.Opti
     for u in d["unmeasured"]:
         console.print(f"  - {u}")
     console.print("[dim]Drift: trustbench drift. Failures to tests: trustbench traces flagged[/dim]")
+
+
+@app.command()
+def demo(workspace: str = typer.Option("demo", help="Name of the new workspace"), scale: float = typer.Option(1.0, help="Share of the production traces to make. Use 0.2 for a quick demo.")):
+    """Fill the database with demo data (no API keys needed) and print a key to open it in the dashboard."""
+    from .demo import make_demo
+
+    factory = get_factory()
+    try:
+        with console.status("Making demo data: three model runs, a release decision, proposals and production traces..."):
+            r = make_demo(factory, workspace, scale)
+    except tenancy.TenancyError as e:
+        _fail(e)
+    console.print(f"Demo workspace '{workspace}' is ready: {len(r.runs)} runs and {r.traces} production traces.\n")
+    console.print(f"API key (admin, shown once):\n\n  {r.api_key}\n")
+    console.print("Open the dashboard:\n  1. trustbench serve\n  2. cd dashboard && pnpm install && pnpm dev\n  3. open http://localhost:3000 and paste the key")
+    console.print("[dim]The demo models are made up. The data shows how TrustBench works. It says nothing about real models.[/dim]")

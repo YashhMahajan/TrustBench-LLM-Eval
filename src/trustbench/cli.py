@@ -63,14 +63,17 @@ def run(
     if issues:
         console.print(f"[yellow]{len(issues)} dataset warning(s). Run 'trustbench check {dataset}' to see them.[/yellow]")
     factory = _factory()
+    from .tenancy import ensure_default_workspace
+    workspace_id = ensure_default_workspace(factory).id
     with factory() as s:
-        version = import_dataset(s, path.stem, cases)
+        version = import_dataset(s, path.stem, cases, workspace_id)
     console.print(f"Dataset {version.name} version {version.content_hash}: {version.case_count} cases. "
                   f"Models: {', '.join(specs)}")
     try:
         run_id = run_eval(factory, version.id, specs,
                           RunOptions(repetitions=reps, concurrency=concurrency, retries=retries,
-                                     timeout=timeout, budget_usd=budget, name=name, judge=judge))
+                                     timeout=timeout, budget_usd=budget, name=name, judge=judge),
+                          workspace_id=workspace_id)
     except ValueError as e:
         console.print(f"[red]{e}[/red]")
         raise typer.Exit(1)

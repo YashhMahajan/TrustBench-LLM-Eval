@@ -206,4 +206,6 @@ def create_app(factory: sessionmaker | None = None) -> FastAPI:
         return {"entries": [{"id": e.id, "key_id": e.key_id, "action": e.action, "target": e.target, "at": _iso(e.created_at)}
                             for e in audit.entries(f, p.workspace_id)]}
 
+    from . import api_data
+    api_data.register(app, need, db)
     return app
