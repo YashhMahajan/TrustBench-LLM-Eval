@@ -83,6 +83,7 @@ class EvaluationRun(Base):
     config_snapshot: Mapped[dict] = mapped_column(Json)
     software_version: Mapped[str] = mapped_column(String(20))
     total_cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    judge_cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
     finished_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)
 

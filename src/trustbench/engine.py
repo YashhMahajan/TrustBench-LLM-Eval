@@ -17,7 +17,8 @@ from .db import (
     DatasetVersion, EvaluationResult, EvaluationRun, ModelConfiguration, ModelResponse,
     TestCase, TestExecution, utcnow,
 )
-from .evaluators import evaluate
+from .evaluators import NEEDS_JUDGE, evaluate
+from .judge import Judge
 from .providers import GenRequest, Provider, ProviderError, estimate_cost, get_provider, split_spec
 
 
@@ -33,11 +34,23 @@ class RunOptions:
     max_tokens: int = 1024
     system_prompt: str | None = None
     name: str | None = None
+    judge: str | None = None  # provider:model of the judge, if a case needs one
 
 
 def _config_hash(provider: str, model: str, params: dict, system: str | None) -> str:
     raw = json.dumps([provider, model, params, system], sort_keys=True)
     return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def make_judge(spec: str | None, provider_factory) -> Judge | None:
+    if not spec:
+        return None
+    pname, model = split_spec(spec)
+    return Judge(provider_factory(pname), model)
+
+
+def _needs_judge(cases) -> bool:
+    return any(e["type"] in NEEDS_JUDGE for c in cases for e in c.evaluation.get("evaluators", []))
 
 
 def _store(session, response_id: int, outcomes, batch: int) -> None:
@@ -81,6 +94,8 @@ async def _run(factory, dataset_version_id, specs, opt: RunOptions, provider_fac
             id=run_id, name=opt.name, dataset_version_id=dataset_version_id,
             config_snapshot={"models": specs, "options": asdict(opt)}, software_version=__version__))
         cases = s.scalars(select(TestCase).where(TestCase.dataset_version_id == dataset_version_id)).all()
+        if _needs_judge(cases) and not opt.judge:
+            raise ValueError("This dataset needs a judge model. Add --judge provider:model.")
         s.flush()
         jobs = []
         for spec in specs:
@@ -92,6 +107,7 @@ async def _run(factory, dataset_version_id, specs, opt: RunOptions, provider_fac
                     s.flush()
                     jobs.append((ex.id, case, spec))
 
+    judge = make_judge(opt.judge, provider_factory)
     sem = asyncio.Semaphore(opt.concurrency)
     spent = 0.0
 
@@ -118,7 +134,7 @@ async def _run(factory, dataset_version_id, specs, opt: RunOptions, provider_fac
                 if r is not None:
                     cost = estimate_cost(r.model_id, r.input_tokens, r.output_tokens)
                     spent += cost or 0.0
-                    outcomes = await evaluate(case.evaluation, case.input, case.expected, r.text)
+                    outcomes = await evaluate(case.evaluation, case.input, case.expected, r.text, judge)
                     with factory.begin() as s:
                         resp = ModelResponse(
                             execution_id=ex_id, attempt=attempt, ok=True, output=r.text,
@@ -144,7 +160,8 @@ async def _run(factory, dataset_version_id, specs, opt: RunOptions, provider_fac
         skipped = s.scalar(select(func.count()).select_from(TestExecution).where(
             TestExecution.run_id == run_id, TestExecution.status.in_(["skipped", "pending"])))
         run.status = "incomplete" if skipped else "complete"
-        run.total_cost_usd = spent
+        run.total_cost_usd = spent + (judge.cost_usd if judge else 0.0)
+        run.judge_cost_usd = judge.cost_usd if judge else 0.0
         run.finished_at = utcnow()
     return run_id
 
@@ -154,12 +171,13 @@ def _set_status(factory, ex_id: int, status: str) -> None:
         s.get(TestExecution, ex_id).status = status
 
 
-def rescore(factory: sessionmaker, run_id: str) -> int:
+def rescore(factory: sessionmaker, run_id: str, judge_spec: str | None = None,
+            provider_factory: Callable[[str], Provider] = get_provider) -> int:
     """Apply the current evaluators to stored outputs. No model calls. Returns the new batch."""
-    return asyncio.run(_rescore(factory, run_id))
+    return asyncio.run(_rescore(factory, run_id, make_judge(judge_spec, provider_factory)))
 
 
-async def _rescore(factory: sessionmaker, run_id: str) -> int:
+async def _rescore(factory: sessionmaker, run_id: str, judge: Judge | None) -> int:
     with factory() as s:
         batch = (s.scalar(
             select(func.max(EvaluationResult.batch))
@@ -171,9 +189,15 @@ async def _rescore(factory: sessionmaker, run_id: str) -> int:
             .join(TestExecution, TestExecution.id == ModelResponse.execution_id)
             .join(TestCase, TestCase.id == TestExecution.test_case_id)
             .where(TestExecution.run_id == run_id, ModelResponse.ok.is_(True))).all()
-    scored = [(resp.id, await evaluate(case.evaluation, case.input, case.expected, resp.output))
+        if _needs_judge([c for _, c in rows]) and judge is None:
+            raise ValueError("This dataset needs a judge model. Add --judge provider:model.")
+    scored = [(resp.id, await evaluate(case.evaluation, case.input, case.expected, resp.output, judge))
               for resp, case in rows]
     with factory.begin() as s:
         for response_id, outcomes in scored:
             _store(s, response_id, outcomes, batch)
+        if judge:
+            run = s.get(EvaluationRun, run_id)
+            run.judge_cost_usd += judge.cost_usd
+            run.total_cost_usd += judge.cost_usd
     return batch

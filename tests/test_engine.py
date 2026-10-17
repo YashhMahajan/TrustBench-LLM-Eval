@@ -75,3 +75,43 @@ def test_config_snapshot_is_stored(factory, version):
     run_id = go(factory, version, MockProvider(ANSWERS), repetitions=2)
     snap = report.get_run(factory, run_id).config_snapshot
     assert snap["models"] == ["mock:m"] and snap["options"]["repetitions"] == 2
+
+
+def judge_dataset(factory):
+    from trustbench.datasets import CaseSpec, import_dataset
+    cases = [CaseSpec(id="j1", input="Explain rain.", expected={"answer": "Water falls from clouds."},
+                      evaluation={"evaluators": [{"type": "llm_judge"}]})]
+    with factory() as s:
+        return import_dataset(s, "judged", cases)
+
+
+def test_judge_cases_need_a_judge(factory):
+    v = judge_dataset(factory)
+    import pytest
+    with pytest.raises(ValueError, match="needs a judge"):
+        go(factory, v, MockProvider({"Explain": "Rain is water."}))
+
+
+def test_llm_judge_scores_and_records_judge_cost(factory, monkeypatch):
+    from helpers import FnProvider
+    monkeypatch.setenv("TRUSTBENCH_PRICES", '{"judge-m": [1000000, 0]}')  # Judge input costs 10 USD per call.
+    v = judge_dataset(factory)
+    judge_provider = FnProvider(lambda p: '{"score": 3, "rationale": "good"}')
+    providers = {"mock": MockProvider({"Explain": "Rain is water from clouds."}), "judge": judge_provider}
+    run_id = run_eval(factory, v.id, ["mock:m"], RunOptions(backoff=0, judge="judge:judge-m"),
+                      provider_factory=lambda n: providers[n])
+    row = report.case_rows(factory, run_id)[0]
+    assert row["passed"] is True
+    run = report.get_run(factory, run_id)
+    assert run.judge_cost_usd == run.total_cost_usd > 0
+    assert "Rain is water from clouds." in judge_provider.prompts[0]
+
+
+def test_judge_failure_is_an_evaluator_problem_not_a_model_failure(factory):
+    from helpers import FnProvider
+    v = judge_dataset(factory)
+    providers = {"mock": MockProvider({"Explain": "x"}), "judge": FnProvider(lambda p: "garbage")}
+    run_id = run_eval(factory, v.id, ["mock:m"], RunOptions(backoff=0, judge="judge:j"),
+                      provider_factory=lambda n: providers[n])
+    row = report.case_rows(factory, run_id)[0]
+    assert row["status"] == "done" and row["passed"] is False and "Evaluator error" in row["rationale"]

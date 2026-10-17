@@ -48,6 +48,7 @@ def run(
     timeout: float = typer.Option(60.0, help="Seconds for each model call"),
     budget: float = typer.Option(None, help="Stop starting new calls after this many USD"),
     name: str = typer.Option(None, help="A label for the run"),
+    judge: str = typer.Option(None, help="provider:model that grades open answers"),
 ):
     """Run a dataset against your models. Without --model, use every API key found."""
     specs = model or detect_models()
@@ -69,7 +70,7 @@ def run(
     try:
         run_id = run_eval(factory, version.id, specs,
                           RunOptions(repetitions=reps, concurrency=concurrency, retries=retries,
-                                     timeout=timeout, budget_usd=budget, name=name))
+                                     timeout=timeout, budget_usd=budget, name=name, judge=judge))
     except ValueError as e:
         console.print(f"[red]{e}[/red]")
         raise typer.Exit(1)
@@ -77,10 +78,14 @@ def run(
 
 
 @app.command("rescore")
-def rescore_cmd(run_id: str):
+def rescore_cmd(run_id: str, judge: str = typer.Option(None, help="provider:model that grades open answers")):
     """Score the stored outputs of a run again. No model calls."""
     factory = _factory()
-    batch = rescore(factory, run_id)
+    try:
+        batch = rescore(factory, run_id, judge)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
     console.print(f"New scoring batch: {batch}")
     _show(factory, run_id, batch)
 
