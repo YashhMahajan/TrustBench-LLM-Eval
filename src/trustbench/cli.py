@@ -252,3 +252,38 @@ def show(run_id: str, case_id: str):
             for c in r["details"].get("claims", []):
                 flag = " (check)" if c.get("needs_review") else ""
                 console.print(f"  - {c['label']}{flag}: {c['claim']}" + (f'  [dim]"{c["quote"]}"[/dim]' if c.get("quote") else ""))
+
+
+@app.command()
+def calibration(run_id: str, model: str = typer.Option(None, help="provider:model, if the run has several")):
+    """Does the stated confidence match the accuracy? Uses the 'calibration' suite."""
+    from .calibration import calibration_from_records
+    from .rundata import load_run
+
+    try:
+        rd = load_run(_factory(), run_id)
+        r = calibration_from_records(rd.for_model(model))
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    if r.n == 0 and not r.unreadable:
+        console.print("[red]This run has no calibrated answers. Run the 'calibration' suite.[/red]")
+        raise typer.Exit(1)
+
+    def f(x, pct=False):
+        return "-" if x is None else (f"{x:.0%}" if pct else f"{x:.3f}")
+
+    t = Table(title=f"Calibration, {r.n} answers")
+    t.add_column("Measure")
+    t.add_column("Value")
+    t.add_row("Accuracy", f(r.accuracy, True))
+    t.add_row("Mean stated confidence", f(r.mean_confidence, True))
+    ci = f" (95% CI {r.brier_ci[0]:.3f} to {r.brier_ci[1]:.3f})" if r.brier_ci else ""
+    t.add_row("Brier score (lower is better)", f(r.brier) + ci)
+    t.add_row("Expected calibration error", f(r.ece))
+    t.add_row("AUROC (0.5 = confidence tells nothing)", f(r.auroc))
+    t.add_row("Error rate if it answers its top 50%", f(r.risk_at_50, True))
+    t.add_row("Error rate if it answers its top 80%", f(r.risk_at_80, True))
+    console.print(t)
+    for w in r.warnings:
+        console.print(f"[yellow]{w}[/yellow]")

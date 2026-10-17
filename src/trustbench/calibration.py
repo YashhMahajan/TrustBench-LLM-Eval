@@ -103,3 +103,19 @@ def calibration_report(conf: list[float], correct: list[bool], unreadable: int =
     if r.auroc is None:
         r.warnings.append("All answers are right, or all are wrong, so AUROC is undefined.")
     return r
+
+
+def calibration_from_records(records) -> CalibrationReport:
+    """Build the report from the 'calibrated_answer' results of a run."""
+    conf, correct, unreadable = [], [], 0
+    for rec in records:
+        for res in rec.results:
+            if res["evaluator"] != "calibrated_answer":
+                continue
+            d = res["details"]
+            if d.get("confidence") is None:
+                unreadable += 1
+            else:
+                conf.append(d["confidence"])
+                correct.append(bool(d["correct"]))
+    return calibration_report(conf, correct, unreadable)

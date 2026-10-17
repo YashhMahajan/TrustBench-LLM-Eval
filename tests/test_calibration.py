@@ -61,3 +61,29 @@ def test_empty_report():
 
 def test_all_correct_warns_about_auroc():
     assert any("AUROC" in w for w in calibration_report([0.9] * 60, [True] * 60).warnings)
+
+
+def test_report_from_run_records():
+    from trustbench.calibration import calibration_from_records
+    from trustbench.rundata import Record
+
+    def rec(conf, correct):
+        return Record(results=[{"evaluator": "calibrated_answer", "passed": correct, "score": float(correct),
+                                "details": {"confidence": conf, "correct": correct}}])
+    r = calibration_from_records([rec(0.9, True), rec(0.8, False), rec(None, True), Record(results=[])])
+    assert r.n == 2 and r.unreadable == 1 and r.accuracy == 0.5
+
+
+def test_calibration_command_on_a_real_run(tmp_path, monkeypatch):
+    from typer.testing import CliRunner
+    from trustbench.cli import app
+    monkeypatch.setenv("TRUSTBENCH_DATABASE_URL", f"sqlite:///{tmp_path}/t.db")
+    runner = CliRunner()
+    # The mock model does not follow the format, so no confidence can be read.
+    out = runner.invoke(app, ["run", "--dataset", "calibration", "--model", "mock:smoke"])
+    run_id = out.output.split("Run ")[1].split()[0].strip("│ ")
+    res = runner.invoke(app, ["calibration", run_id])
+    assert res.exit_code == 0 and "10 answer(s) had no readable confidence" in res.output
+    smoke = runner.invoke(app, ["run", "--model", "mock:smoke"])
+    smoke_id = smoke.output.split("Run ")[1].split()[0].strip("│ ")
+    assert runner.invoke(app, ["calibration", smoke_id]).exit_code == 1
