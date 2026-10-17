@@ -94,3 +94,40 @@ def test_ingesting_a_batch_uses_few_statements(factory):
     seen = count_statements(factory)
     ingest(factory, ws.id, batch)
     assert len(seen) <= 25, len(seen)                      # It used one statement for every trace and every span.
+
+
+# ---- Indexes: ask the database how it will run the query, and check it uses an index -----------------
+
+def _plan(engine, sql):
+    from sqlalchemy import text
+    with engine.connect() as c:
+        return " | ".join(r[3] for r in c.execute(text("EXPLAIN QUERY PLAN " + sql)))
+
+
+def test_the_main_queries_use_an_index_and_not_a_table_scan(tmp_path):
+    from trustbench.db import init_db, make_engine
+    engine = make_engine(f"sqlite:///{tmp_path}/plan.db")
+    init_db(engine)
+    expected = {
+        "SELECT * FROM jobs WHERE state='queued' AND run_after<='2026-01-01' ORDER BY run_after, id LIMIT 1":
+            "ix_jobs_state_run_after_id",
+        "SELECT * FROM evaluation_runs WHERE workspace_id='w' ORDER BY created_at DESC LIMIT 20":
+            "ix_evaluation_runs_workspace_created",
+        "SELECT * FROM test_executions WHERE run_id='r' AND status='pending'":
+            "ix_test_executions_run_status",
+        "SELECT * FROM production_traces WHERE workspace_id='w' AND started_at>='2026-01-01'":
+            "ix_production_traces_workspace_started",
+    }
+    for sql, index in expected.items():
+        plan = _plan(engine, sql)
+        assert index in plan, f"{sql}\n -> {plan}"
+        assert "SCAN" not in plan, plan
+
+
+def test_an_index_that_a_composite_index_already_covers_is_not_kept():
+    from trustbench.db import Base
+    for table in Base.metadata.sorted_tables:
+        indexes = [tuple(c.name for c in i.columns) for i in table.indexes]
+        for a in indexes:
+            for b in indexes:
+                assert not (a != b and b[:len(a)] == a), f"{table.name}: {a} is covered by {b}"

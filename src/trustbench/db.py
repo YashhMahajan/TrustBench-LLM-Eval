@@ -12,6 +12,7 @@ from sqlalchemy import (
     Boolean,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -79,9 +80,11 @@ class ModelConfiguration(Base):
 
 class EvaluationRun(Base):
     __tablename__ = "evaluation_runs"
+    # Run lists are read for one workspace, newest first.
+    __table_args__ = (Index("ix_evaluation_runs_workspace_created", "workspace_id", "created_at"),)
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    workspace_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    workspace_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     dataset_version_id: Mapped[int] = mapped_column(ForeignKey("dataset_versions.id"))
     # running | complete | incomplete
@@ -99,9 +102,11 @@ class TestExecution(Base):
 
     __test__ = False
     __tablename__ = "test_executions"
+    # Resume and progress ask for the executions of one run in one status.
+    __table_args__ = (Index("ix_test_executions_run_status", "run_id", "status"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    run_id: Mapped[str] = mapped_column(ForeignKey("evaluation_runs.id"), index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("evaluation_runs.id"))
     test_case_id: Mapped[int] = mapped_column(ForeignKey("test_cases.id"))
     model_config_id: Mapped[int] = mapped_column(ForeignKey("model_configurations.id"))
     repetition: Mapped[int] = mapped_column(Integer, default=0)
@@ -244,10 +249,13 @@ class ProductionTrace(Base):
     """One request to an AI system in production. By default it holds measurements only, no text."""
 
     __tablename__ = "production_traces"
-    __table_args__ = (UniqueConstraint("workspace_id", "trace_id"),)
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "trace_id"),
+        Index("ix_production_traces_workspace_started", "workspace_id", "started_at"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"))
     trace_id: Mapped[str] = mapped_column(String(64))            # Chosen by the client. Sending it again changes nothing.
     name: Mapped[str] = mapped_column(String(100), index=True)   # The feature or app. For example "support-bot".
     started_at: Mapped[dt.datetime] = mapped_column(index=True)
@@ -311,15 +319,17 @@ class JobRow(Base):
     """A task for a worker. The database is the default queue, so no other service is needed."""
 
     __tablename__ = "jobs"
+    # A worker takes the oldest ready job: this index answers that without a sort.
+    __table_args__ = (Index("ix_jobs_state_run_after_id", "state", "run_after", "id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     kind: Mapped[str] = mapped_column(String(50), index=True)
     payload: Mapped[dict] = mapped_column(Json, default=dict)
     workspace_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
-    state: Mapped[str] = mapped_column(String(10), index=True, default="queued")   # queued | running | done | dead
+    state: Mapped[str] = mapped_column(String(10), default="queued")   # queued | running | done | dead
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     max_attempts: Mapped[int] = mapped_column(Integer, default=3)
-    run_after: Mapped[dt.datetime] = mapped_column(default=utcnow, index=True)
+    run_after: Mapped[dt.datetime] = mapped_column(default=utcnow)
     lease_expires_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)
     worker_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
