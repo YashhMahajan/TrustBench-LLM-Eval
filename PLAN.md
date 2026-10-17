@@ -37,7 +37,7 @@ trustbench run
 
 Decisions from the owner:
 - Database: Postgres. Users start it with `docker compose up -d`.
-- Redis and a task queue: added in the phase that needs them (distributed workers, Phase 4).
+- Redis and a task queue: added in the phase that needs them (distributed workers, Phase 5).
 - Multi-tenant access control and encryption of stored secrets: added in Phase 5.
 - Dashboard: Next.js as a separate server (Phase 6).
 - No local services on the owner's Mac. Tests use in-memory SQLite and a mock provider. No API keys are needed.

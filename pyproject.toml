@@ -14,10 +14,14 @@ dependencies = [
   "rich>=13",
   "jsonschema>=4.20",
   "pyyaml>=6",
+  "fastapi>=0.110",
+  "uvicorn>=0.29",
+  "cryptography>=42",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+redis = ["redis>=5"]
 
 [project.scripts]
 trustbench = "trustbench.cli:app"

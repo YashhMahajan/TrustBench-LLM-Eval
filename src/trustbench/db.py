@@ -204,6 +204,33 @@ class ProposedCase(Base):
     reviewed_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)
 
 
+class Workspace(Base):
+    """A tenant. Production data and API keys belong to one workspace and are never shared."""
+
+    __tablename__ = "workspaces"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True)
+    settings: Mapped[dict] = mapped_column(Json, default=dict)   # Data policy. See trustbench.dataprotect.
+    created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
+
+
+class ApiKey(Base):
+    """We store only a hash of the key. The key itself is shown once, when it is made."""
+
+    __tablename__ = "api_keys"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    prefix: Mapped[str] = mapped_column(String(12), index=True)   # The first characters, to find the row quickly.
+    key_hash: Mapped[str] = mapped_column(String(64))
+    role: Mapped[str] = mapped_column(String(10))                 # read | write | admin
+    created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
+    last_used_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)
+    revoked_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)
+
+
 def make_engine(url: str) -> Engine:
     if url.startswith("sqlite") and (":memory:" in url or url.endswith("//")):
         return create_engine(
