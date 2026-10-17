@@ -129,3 +129,38 @@ def test_wider_threshold_changes_the_verdict():
     from trustbench.stats import verdict
     assert verdict((0.02, 0.04), 0.01) == "meaningful_improvement"
     assert verdict((0.02, 0.04), 0.05) == "improvement_below_threshold"
+
+
+def test_fisher_exact_lower_rate():
+    from trustbench.stats import fisher_exact_less
+    # Group A passes 2 of 10, group B passes 9 of 10: A is clearly lower.
+    assert fisher_exact_less(2, 10, 9, 10) < 0.01
+    assert fisher_exact_less(9, 10, 2, 10) > 0.99
+    assert fisher_exact_less(5, 10, 5, 10) > 0.5
+    # Hand value: 1 of 3 against 3 of 3 gives P = C(3,1)*C(3,3)... = 3/20 + 1/20 = 0.2
+    assert fisher_exact_less(1, 3, 3, 3) == pytest.approx(0.2)
+
+
+def test_benjamini_hochberg():
+    from trustbench.stats import benjamini_hochberg
+    assert benjamini_hochberg([0.001, 0.008, 0.039, 0.041, 0.042, 0.06, 0.074, 0.205, 0.212, 0.216]) == [
+        True, True, False, False, False, False, False, False, False, False]
+    assert benjamini_hochberg([0.5, 0.9]) == [False, False]
+    assert benjamini_hochberg([]) == []
+    # A group of small p-values is kept together, even when the largest is above its own line.
+    assert benjamini_hochberg([0.01, 0.04, 0.03], q=0.05) == [True, True, True]
+
+
+def test_many_tests_of_noise_rarely_raise_a_false_alarm():
+    from trustbench.stats import benjamini_hochberg, fisher_exact_less
+    rng = random.Random(11)
+    runs_with_alarm_raw = runs_with_alarm_bh = 0
+    for _ in range(100):
+        ps = []
+        for _ in range(40):  # 40 slices, all with the same true pass rate.
+            a = sum(rng.random() < 0.7 for _ in range(20))
+            b = sum(rng.random() < 0.7 for _ in range(60))
+            ps.append(fisher_exact_less(a, 20, b, 60))
+        runs_with_alarm_raw += any(p < 0.05 for p in ps)
+        runs_with_alarm_bh += any(benjamini_hochberg(ps))
+    assert runs_with_alarm_raw > 60 and runs_with_alarm_bh < 15

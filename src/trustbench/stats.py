@@ -124,3 +124,28 @@ def verdict(ci: tuple[float, float], min_effect: float) -> str:
     if lo > -min_effect and hi < min_effect:
         return "equivalent"
     return "inconclusive"
+
+
+def fisher_exact_less(a_pass: int, a_n: int, b_pass: int, b_n: int) -> float:
+    """One-sided Fisher exact test: is the pass rate of group A lower than that of group B?"""
+    total, passes = a_n + b_n, a_pass + b_pass
+    lo = max(0, passes - b_n)
+    denom = math.comb(total, passes)
+    return min(1.0, sum(math.comb(a_n, k) * math.comb(b_n, passes - k) for k in range(lo, a_pass + 1)) / denom)
+
+
+def benjamini_hochberg(p_values: list[float], q: float = 0.05) -> list[bool]:
+    """Which p-values stay significant when we test many things? Controls the false discovery rate at q.
+
+    If we test 100 slices, about 5 look bad by chance at p < 0.05. This removes most of them.
+    """
+    m = len(p_values)
+    order = sorted(range(m), key=lambda i: p_values[i])
+    cutoff = -1
+    for rank, i in enumerate(order, start=1):
+        if p_values[i] <= q * rank / m:
+            cutoff = rank
+    keep = [False] * m
+    for rank, i in enumerate(order, start=1):
+        keep[i] = rank <= cutoff
+    return keep
