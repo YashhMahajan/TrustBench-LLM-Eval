@@ -1,27 +1,17 @@
 import typer
-from rich.console import Console
 from rich.table import Table
 
 from pathlib import Path
 
 from . import annotations, quality, report
 from .judge_validation import validate_judge
-from .config import database_url, detect_models
+from .cli_common import console, get_factory
+from .config import detect_models
 from .datasets import DatasetError, import_dataset, load_cases, resolve_path
-from .db import init_db, make_engine
 from .engine import RunOptions, rescore, run_eval
 
 app = typer.Typer(help="TrustBench: evaluate LLMs. Set an API key and run.", no_args_is_help=True)
-console = Console()
-
-
-def _factory():
-    try:
-        return init_db(make_engine(database_url()))
-    except Exception as e:
-        console.print(f"[red]Cannot reach the database:[/red] {e}\n"
-                      "Start it with 'docker compose up -d', or set TRUSTBENCH_DATABASE_URL.")
-        raise typer.Exit(1)
+_factory = get_factory
 
 
 def _show(factory, run_id: str, batch: int | None = None) -> None:
@@ -287,3 +277,6 @@ def calibration(run_id: str, model: str = typer.Option(None, help="provider:mode
     console.print(t)
     for w in r.warnings:
         console.print(f"[yellow]{w}[/yellow]")
+
+
+from . import cli_stats  # noqa: E402,F401  (adds compare, gate, baseline and policy commands)
