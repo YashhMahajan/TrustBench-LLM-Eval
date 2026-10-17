@@ -52,7 +52,7 @@ def _floor_check(rule: str, floor: float, n: int, rate: float | None, ci, use_bo
         return Check(rule, "inconclusive", required, "no scored cases")
     observed = f"{rate:.1%} (95% interval {ci[0]:.1%} to {ci[1]:.1%}), n={n}"
     if n < min_n:
-        return Check(rule, "inconclusive", required, observed, f"Only {n} cases. This rule needs {min_n}.")
+        return Check(rule, "inconclusive", required, observed, f"Only {n} case(s). This rule needs {min_n}.")
     if use_bound:
         if ci[0] >= floor:
             return Check(rule, "pass", required, observed)

@@ -24,6 +24,44 @@ No key? Try the demo: `trustbench run --model mock:smoke`
 | `trustbench annotations import FILE --annotator NAME` | Store the human labels |
 | `trustbench validate-judge RUN_ID` | Compare judge grades with human labels |
 | `trustbench judge-bias --judge provider:model` | Test a judge for position, length and wording bias |
+| `trustbench report RUN_ID` | Pass rates with intervals, weak slices, latency, cost, claims |
+| `trustbench compare RUN --baseline REF` | Change against a baseline, with interval, p-value and verdict |
+| `trustbench gate check RUN` | Check a run against `policy.yaml` |
+| `trustbench baseline set NAME RUN_ID` | Name a run as a baseline |
+| `trustbench policy init` | Write a policy file with comments |
+| `trustbench calibration RUN_ID` | Brier score, calibration error, AUROC, risk and coverage |
+
+## Decide if a model is ready
+
+1. Run your dataset, then name the run that works today as the baseline:
+   `trustbench baseline set main RUN_ID`
+2. Change your model or prompt. Run the dataset again.
+3. See what changed: `trustbench compare NEW_RUN --baseline main --slices`
+4. Write a policy once: `trustbench policy init`. Edit `policy.yaml`.
+5. Ask the gate: `trustbench gate check NEW_RUN --baseline main`
+   Exit code 0 means the release may go on. Exit code 1 means it may not.
+
+`trustbench report RUN_ID` shows pass rates with intervals, weak slices, latency, errors and cost. Add `--json` for other tools.
+
+### How to read the results
+
+Every pass rate has a 95% interval and the number of cases. A small run gives a wide interval. The gate uses the interval, not only the average.
+
+| Verdict | Meaning |
+|---|---|
+| better / worse | The change is real and larger than `min_effect` |
+| slightly better / slightly worse | The change is real but may be too small to matter |
+| no real change | The change is smaller than `min_effect` |
+| cannot tell | The data is too weak. Run more cases. |
+
+| Gate status | Meaning |
+|---|---|
+| pass | Every rule is met, with enough evidence |
+| fail | At least one rule is clearly broken |
+| inconclusive | The evidence is too weak to decide. This blocks the release by default. |
+| incomplete | The run did not finish, or an evaluator broke |
+
+A failed model call counts as a failed case. A skipped case or a broken evaluator is left out and reported, because it says nothing about the model.
 
 ## Built-in suites
 

@@ -57,6 +57,8 @@ Data model: DatasetVersion, TestCase, ModelConfiguration, EvaluationRun, TestExe
 
 Phase 2 modules: eval_* (evaluators), judge, pairwise, claims, verify, hallucination, quality, annotations, agreement, judge_validation, judge_bias, stats (Wilson interval).
 
+Phase 3 modules: stats, rundata, scorecard, operations, comparison, slices, calibration, policy, gate, baselines, summary, cli_stats. Tables added: baselines, release_decisions.
+
 Open item: tables are created with `create_all`. A change to a table needs a migration tool (Alembic). We add it before the first release.
 
 Invariants (we enforce them in code and tests):
@@ -89,7 +91,7 @@ Each phase gives a working system. Each phase has tests before we continue.
 - Built-in suites: factual QA, grounded QA, hallucination traps, instruction following, structured output, abstention, safety, calibration.
 - Human annotation and judge validation (agreement, kappa, position and verbosity bias).
 
-### Phase 3 — Statistics and release gate
+### Phase 3 — Statistics and release gate (DONE; CLI and API commands for CI use are in, CI integration itself is out of scope)
 - Wilson CI, bootstrap CI, McNemar, paired bootstrap, permutation test.
 - Practical threshold: Improvement / Regression / Inconclusive.
 - Slice analysis with sample sizes and Benjamini-Hochberg control.
