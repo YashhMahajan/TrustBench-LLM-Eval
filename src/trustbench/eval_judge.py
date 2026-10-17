@@ -26,5 +26,6 @@ async def llm_judge(ctx: Ctx) -> Outcome:
     ref = reference_of(ctx.expected) if ctx.spec.get("use_reference", True) else None
     g = await grade(ctx.judge, rubric, question_of(ctx.input), ctx.output, ref,
                     ctx.input.get("context"), ctx.spec.get("repeats", 1))
-    details = {"scores": g.scores, "judge_model": ctx.judge.model, "human_review": g.disagreement}
+    details = {"scores": g.scores, "raw_score": g.score, "max_score": g.max_score, "pass_at": pass_at,
+               "judge_model": ctx.judge.model, "human_review": g.disagreement}
     return Outcome("llm_judge", g.rubric_id, g.score >= pass_at, g.normalized, g.rationale, details)

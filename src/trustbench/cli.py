@@ -5,6 +5,7 @@ from rich.table import Table
 from pathlib import Path
 
 from . import annotations, quality, report
+from .judge_validation import validate_judge
 from .config import database_url, detect_models
 from .datasets import DatasetError, import_dataset, load_cases, resolve_path
 from .db import init_db, make_engine
@@ -162,3 +163,28 @@ def annotations_import(
         console.print(f"[red]{e}[/red]")
         raise typer.Exit(1)
     console.print(f"Stored {stored} label(s). Skipped {skipped} empty row(s).")
+
+
+@app.command("validate-judge")
+def validate_judge_cmd(run_id: str, dimension: str = typer.Option("correctness", help="Label dimension to compare")):
+    """Compare the judge grades of a run with human labels."""
+    v = validate_judge(_factory(), run_id, dimension)
+    t = Table(title=f"Judge validation, {v.n} labelled answers")
+    t.add_column("Measure")
+    t.add_column("Value")
+
+    def fmt(x, pct=False):
+        return "-" if x is None else (f"{x:.0%}" if pct else f"{x:.2f}")
+
+    ci = f" (95% CI {v.exact_agreement_ci[0]:.0%} to {v.exact_agreement_ci[1]:.0%})" if v.exact_agreement_ci else ""
+    t.add_row("Exact agreement", fmt(v.exact_agreement, True) + ci)
+    t.add_row("Cohen's kappa", fmt(v.kappa))
+    t.add_row("Weighted kappa", fmt(v.weighted_kappa))
+    t.add_row("Pass/fail agreement", fmt(v.pass_agreement, True))
+    t.add_row("False pass rate", fmt(v.false_pass_rate, True))
+    t.add_row("False fail rate", fmt(v.false_fail_rate, True))
+    t.add_row("Human agreement (alpha)", fmt(v.human_alpha))
+    t.add_row("Grades the judge flagged", fmt(v.judge_review_rate, True))
+    console.print(t)
+    for w in v.warnings:
+        console.print(f"[yellow]{w}[/yellow]")
