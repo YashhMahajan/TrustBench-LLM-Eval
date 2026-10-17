@@ -269,7 +269,12 @@ def run_worker(queue: JobQueue, handlers: dict[str, Handler], worker_id: str | N
             with lock:
                 if max_jobs is not None and handled[0] >= max_jobs:
                     return
-            job = queue.claim(wid, list(handlers))
+            try:
+                job = queue.claim(wid, list(handlers))
+            except Exception:       # The database or Redis may be down for a moment. The worker waits and tries again.
+                log.exception("could not take a task")
+                stop.wait(min(poll_interval * 5, 30))
+                continue
             if job is None:
                 if idle_exit:
                     return
@@ -278,10 +283,16 @@ def run_worker(queue: JobQueue, handlers: dict[str, Handler], worker_id: str | N
             try:
                 handlers[job.kind](job.payload, job)
             except Exception as e:      # Any error of a handler is recorded. The worker goes on.
-                state = queue.fail(job.id, f"{type(e).__name__}: {e}")
-                log.warning("job %s (%s) failed on attempt %d: %s -> %s", job.id, job.kind, job.attempts, e, state)
+                try:
+                    state = queue.fail(job.id, f"{type(e).__name__}: {e}")
+                    log.warning("job %s (%s) failed on attempt %d: %s -> %s", job.id, job.kind, job.attempts, e, state)
+                except Exception:
+                    log.exception("could not record the failure of job %s. Its lease will end and it will run again.", job.id)
             else:
-                queue.complete(job.id)
+                try:
+                    queue.complete(job.id)
+                except Exception:
+                    log.exception("could not mark job %s as done. Its lease will end and it will run again.", job.id)
             with lock:
                 handled[0] += 1
 

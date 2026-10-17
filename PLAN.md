@@ -61,7 +61,16 @@ Phase 3 modules: stats, rundata, scorecard, operations, comparison, slices, cali
 
 Phase 4 modules: transforms, paraphrase, robustness, eval_injection, adversary, proposals, failures, clustering, rag, priority, failure_report, frontier. Table added: proposed_cases. Suite added: injection.
 
-Open item: tables are created with `create_all`. A change to a table needs a migration tool (Alembic). We add it before the first release.
+Phase 5 modules: tenancy, redact, crypto, dataprotect, audit, traces, api, sdk, jobs, handlers, online, drift, production_tests, monitor, cli_server. Tables added: workspaces, api_keys, audit_log, production_traces, trace_spans, trace_evaluations, jobs.
+
+Open items before the first release:
+- Tables are created with `create_all`. Add Alembic migrations (a column change needs one).
+- Runs, datasets, baselines and proposals from the CLI are not scoped by workspace. Scope them when Phase 6 serves them over the API.
+- The server has no TLS, rate limit or key expiry.
+- Postgres, a real Redis server and live model APIs are not tested yet (no services on the development machine).
+- A Dockerfile and compose services for the API and the worker.
+
+Older note: tables are created with `create_all`. A change to a table needs a migration tool (Alembic). We add it before the first release.
 
 Invariants (we enforce them in code and tests):
 1. A dataset version never changes. A change makes a new version.
@@ -109,7 +118,7 @@ Each phase gives a working system. Each phase has tests before we continue.
 - Failure taxonomy, embedding clusters, RAG stage diagnosis, priority score.
 - Cost/latency: P50/P95/P99, cost per successful task, Pareto frontier.
 
-### Phase 5 — Production loop
+### Phase 5 — Production loop (DONE)
 - Small SDK: `trustbench.trace(...)`. It sends traces to the local server.
 - Redaction and retention settings.
 - Online evaluation by sampling. Drift detection (PSI, KS test).

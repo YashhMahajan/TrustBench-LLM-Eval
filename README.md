@@ -36,6 +36,15 @@ No key? Try the demo: `trustbench run --model mock:smoke`
 | `trustbench proposals generate RUN_ID` | Propose new test cases from failures |
 | `trustbench proposals list / approve / edit / reject / export` | Review the proposals. Export the approved ones as a dataset |
 | `trustbench frontier RUN_ID...` | Compare models on quality, cost and latency |
+| `trustbench workspace create / list / set` | Tenants and their data policy |
+| `trustbench key create / list / revoke` | API keys (read, write, admin) |
+| `trustbench serve` | Start the HTTP API (docs at `/docs`) |
+| `trustbench worker` | Run background tasks (online evaluation, deletion of old traces) |
+| `trustbench monitor` | Production state: errors, latency, cost, online checks |
+| `trustbench drift` | Has the production traffic changed? |
+| `trustbench traces list / show / flagged / promote / purge` | Production traces and their conversion to tests |
+| `trustbench jobs status / dead / retry` | The task queue |
+| `trustbench secrets generate-key` | Encryption key for stored content |
 
 ## Decide if a model is ready
 
@@ -82,6 +91,69 @@ A model that passes the original but fails a copy is fragile. The report keeps f
 **Which model is worth its price?** `trustbench frontier RUN_ID --min-quality 0.9 --max-cost 0.01` lists the models that nobody beats on quality, cost and latency together. A model with no known price is listed apart. An unknown cost is never counted as zero.
 
 The `injection` suite checks only what the model writes. It does not test your permissions, your sandbox or your data limits.
+
+## Watch a system in production
+
+1. Make a workspace and a key, then start the server:
+   ```bash
+   trustbench workspace create acme
+   trustbench key create --workspace acme --role write      # Copy the key. It is shown once.
+   trustbench serve
+   ```
+2. Send traces from your code:
+   ```python
+   from trustbench.sdk import TrustBench
+   tb = TrustBench()      # uses TRUSTBENCH_API_KEY and TRUSTBENCH_URL
+
+   with tb.trace("support-bot", model="gpt-4o-mini") as t:
+       t.input = question
+       with t.span("search", kind="retrieval"):
+           docs = search(question)
+       t.output = answer(question, docs)
+   tb.feedback(t.trace_id, -1)      # A user did not like the answer
+   ```
+   The SDK never raises an error into your code, never waits for the network, and removes personal data before it sends anything.
+3. Start a worker for the background tasks: `trustbench worker`
+4. Look at it: `trustbench monitor`, `trustbench drift`, `trustbench traces flagged`
+
+### What we store
+
+The default is the safest. A workspace stores **measurements only**: time, size, tokens, cost, status. It stores **no text**.
+To keep text, an admin turns it on. The text is then redacted (emails, phone numbers, cards, secrets and more are replaced by markers) and encrypted with your key before it reaches the database.
+
+```bash
+trustbench secrets generate-key                 # put the result in TRUSTBENCH_SECRET_KEY
+trustbench workspace set acme --store-content --retention-days 14 --sample-rate 0.1
+```
+
+Old traces are deleted after the retention time. Reading stored text needs an admin key, and every read is written to an audit log. A key sees only its own workspace.
+
+### Online checks and what they mean
+
+A sample of the traffic is checked while it runs. With no reference answers, only some checks are possible, and each result says how sure we are:
+
+| Kind | Example | Meaning |
+|---|---|---|
+| measured | word limit, JSON schema, forbidden words | A rule found it. No guess. |
+| estimated | groundedness, helpfulness | A judge model guessed. A judge can be wrong. |
+| not measured | answer correctness | Production has no reference answers. `trustbench monitor` lists these gaps. |
+
+User ratings are a signal from the users who chose to rate. They do not stand for all traffic.
+
+### From a production failure to a guard
+
+`trustbench traces flagged` lists traces with an error, a bad rating or a failed check. `trustbench traces promote TRACE_ID` proposes a test case from one of them. A person approves it (`trustbench proposals approve`), `trustbench proposals export` writes the dataset, and the next release must pass it.
+
+### Scale
+
+Tasks wait in the database by default. For many workers on a busy queue set `TRUSTBENCH_REDIS_URL` (and `pip install 'trustbench[redis]'`). Start as many `trustbench worker` processes as you need.
+
+### Limits
+
+- Redaction finds patterns (emails, numbers, secrets). It does not find names or addresses in free text.
+- The server has no TLS, rate limit or key expiry. Put it behind a proxy.
+- The Redis queue is tested against an in-memory copy of the Redis commands it uses, not against a Redis server.
+- Runs and datasets from `trustbench run` are not split by workspace yet. The API serves production data only.
 
 ## Built-in suites
 

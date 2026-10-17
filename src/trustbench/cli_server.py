@@ -301,3 +301,51 @@ def traces_purge():
     """Delete all traces that are past their retention time."""
     from .traces import purge_expired
     console.print(f"Deleted {purge_expired(get_factory())} expired trace(s).")
+
+
+@app.command()
+def monitor(workspace: str = typer.Argument("default"), days: float = typer.Option(7), name: str = typer.Option(None, help="Only traces of this feature"),
+            as_json: bool = typer.Option(False, "--json")):
+    """The state of a production system: errors, latency, cost, online checks. Each number says how it was obtained."""
+    import json
+
+    from .monitor import monitor_summary
+
+    factory = get_factory()
+    ws = _workspace(factory, workspace)
+    d = monitor_summary(factory, ws.id, days, name)
+    if as_json:
+        typer.echo(json.dumps(d, indent=2, default=str))
+        return
+    console.print(f"Last {days:g} day(s): {d['traces']} traces" + (f" of '{name}'" if name else ""))
+    if not d["traces"]:
+        return
+    m, pct = d["measured"], (lambda r: "-" if r["value"] is None else f"{r['value']:.1%} ({r['ci'][0]:.1%} to {r['ci'][1]:.1%}), n={r['n']}")
+    t = Table(title="Measured: counted or timed")
+    t.add_column("Measure")
+    t.add_column("Value")
+    t.add_row("Error rate", pct(m["error_rate"]))
+    lat = m["latency_ms"]
+    t.add_row("Latency P50 / P95 / P99", f"{lat['p50']:.0f} / {lat['p95']:.0f} / {lat['p99']:.0f} ms")
+    c = m["cost_usd"]
+    t.add_row("Cost", "unknown (no prices)" if c["total"] is None else f"${c['total']:.4f} (${c['per_trace']:.5f} per trace, {c['priced_share']:.0%} of traces priced)")
+    t.add_row("Empty answers", pct(m["empty_answer_rate"]))
+    fb = m["user_feedback"]
+    t.add_row("Bad user feedback", pct(fb["bad"]) + f", {fb['rated_share']:.0%} of traces rated")
+    for k, v in m.items():
+        if k.startswith("check:"):
+            t.add_row(f"Rule check {k[6:]}", f"{v['pass_rate']['value']:.1%} pass, on {v['coverage']:.0%} of traces")
+    console.print(t)
+    if d["estimated"]:
+        e = Table(title="Estimated: a judge model's opinion on a sample. A judge can be wrong.")
+        e.add_column("Check")
+        e.add_column("Pass rate")
+        for k, v in d["estimated"].items():
+            e.add_row(k[6:], f"{pct(v['pass_rate'])}, on {v['coverage']:.0%} of traces")
+        console.print(e)
+    o = d["online_checks"]
+    console.print(f"Online checks: {o['sampled_share']:.0%} sampled, {o['evaluated']} done, {o['pending']} waiting, {o['failed_to_evaluate']} failed.")
+    console.print("[bold]Not measured:[/bold]")
+    for u in d["unmeasured"]:
+        console.print(f"  - {u}")
+    console.print("[dim]Drift: trustbench drift. Failures to tests: trustbench traces flagged[/dim]")

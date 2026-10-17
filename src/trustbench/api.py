@@ -187,6 +187,11 @@ def create_app(factory: sessionmaker | None = None) -> FastAPI:
         audit.record(f, p, "settings.update", ",".join(sorted(changes)))
         return new.model_dump()
 
+    @app.get("/v1/monitor")
+    def get_monitor(p: Principal = Depends(need("read")), f: sessionmaker = Depends(db), days: float = Query(7, gt=0, le=365), name: str | None = None):
+        from .monitor import monitor_summary
+        return monitor_summary(f, p.workspace_id, days, name)
+
     @app.get("/v1/drift")
     def get_drift(p: Principal = Depends(need("read")), f: sessionmaker = Depends(db), current_days: float = Query(7, gt=0, le=365),
                   reference_days: float = Query(30, gt=0, le=365), name: str | None = None):

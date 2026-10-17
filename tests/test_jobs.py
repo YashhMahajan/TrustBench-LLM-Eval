@@ -152,3 +152,30 @@ def test_make_queue_picks_the_backend(factory, monkeypatch):
         make_queue(factory)
     except RuntimeError as e:
         assert "pip install" in str(e)         # The redis package is an optional extra.
+
+
+def test_a_database_error_does_not_kill_a_worker(factory):
+    """The first calls to claim, complete and fail raise errors, as if the database were down for a moment."""
+    real = DbQueue(factory)
+    real.enqueue("a", {"n": 1})
+    real.enqueue("b", {"n": 2}, max_attempts=1)
+    broken = {"claim": 2, "complete": 1, "fail": 1}
+
+    class Flaky:
+        def __getattr__(self, name):
+            fn = getattr(real, name)
+            def call(*a, **k):
+                if broken.get(name, 0) > 0:
+                    broken[name] -= 1
+                    raise ConnectionError("database is away")
+                return fn(*a, **k)
+            return call
+
+    done = []
+    handlers = {"a": lambda p, j: done.append("a"), "b": lambda p, j: 1 / 0}
+    stop = threading.Event()
+    threading.Timer(0.5, stop.set).start()
+    run_worker(Flaky(), handlers, concurrency=1, stop=stop, poll_interval=0.01)
+    assert done == ["a"]                              # The worker lived through two failed claims and handled the job.
+    # Recording the result failed for both jobs, so they stay "running" until the lease ends. Then another run takes them again.
+    assert real.counts() == {"queued": 0, "running": 2, "done": 0, "dead": 0}
