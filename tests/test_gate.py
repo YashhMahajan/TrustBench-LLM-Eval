@@ -102,9 +102,7 @@ def test_regression_fail_pass_and_inconclusive():
     base = run([1] * 90 + [0] * 10)
     p = policy(overall=Rule(maximum_regression=0.02))
     assert decide(p, run([1] * 60 + [0] * 40), base).status == "fail"
-    assert decide(p, run([1] * 90 + [0] * 10), base).status == "pass" or True
-    same = decide(p, run([1] * 90 + [0] * 10), base)
-    assert by_rule(same)["overall.maximum_regression"].status in ("inconclusive", "pass")
+    assert decide(p, run([1] * 90 + [0] * 10), base).status == "pass"   # Identical results: no change at all.
     big = run([1] * 900 + [0] * 100)
     assert decide(p, run([1] * 900 + [0] * 100), big).status == "pass"
     small = decide(p, run([1] * 45 + [0] * 5), run([1] * 46 + [0] * 4))   # One case worse. Cannot tell.

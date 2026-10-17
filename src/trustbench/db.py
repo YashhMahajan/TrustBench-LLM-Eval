@@ -153,6 +153,37 @@ class HumanAnnotation(Base):
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
 
 
+class Baseline(Base):
+    """A named run to compare against, for example 'main'. Setting it again moves the name."""
+
+    __tablename__ = "baselines"
+
+    name: Mapped[str] = mapped_column(String(100), primary_key=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("evaluation_runs.id"))
+    model: Mapped[str | None] = mapped_column(String(250), nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
+
+
+class ReleaseDecision(Base):
+    """What the gate decided, with the policy and the evidence. Rows are never changed."""
+
+    __tablename__ = "release_decisions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("evaluation_runs.id"), index=True)
+    model: Mapped[str] = mapped_column(String(250))
+    baseline_run_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    baseline_model: Mapped[str | None] = mapped_column(String(250), nullable=True)
+    policy_name: Mapped[str] = mapped_column(String(100))
+    policy_snapshot: Mapped[dict] = mapped_column(Json)
+    status: Mapped[str] = mapped_column(String(20))
+    allowed: Mapped[bool] = mapped_column(Boolean)
+    checks: Mapped[list] = mapped_column(Json)
+    warnings: Mapped[list] = mapped_column(Json)
+    software_version: Mapped[str] = mapped_column(String(20))
+    created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
+
+
 def make_engine(url: str) -> Engine:
     if url.startswith("sqlite") and (":memory:" in url or url.endswith("//")):
         return create_engine(
