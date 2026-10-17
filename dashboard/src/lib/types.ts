@@ -65,3 +65,29 @@ export interface Monitor {
 export interface DriftFinding { feature: string; kind: string; statistic: number | null; p_value: number | null; drifted: boolean; level: string; reference: string; current: string }
 export interface Drift { reference_traces: number; current_traces: number; warnings: string[]; note: string; findings: DriftFinding[] }
 export interface Proposal { id: number; dataset: string; case_id: string; method: string; status: string; answer_checked: boolean; source_case: string | null; note: string; spec: { input: Record<string, string>; expected: Record<string, unknown>; evaluation: { evaluators: { type: string }[] } } }
+
+export interface RateK { k: number; n: number; ci: Interval }
+export interface Group { name: string; pairs: number; original_rate: number; variant_rate: number; break_rate: RateK }
+export interface Robustness {
+  pairs: number; original_rate: number | null; variant_rate: number | null; degradation: number | null; degradation_ci: Interval;
+  break_rate: RateK | null; fix_rate: RateK | null; consistency: RateK | null; consistently_wrong: RateK | null;
+  by_transform: Group[]; by_task: Group[]; worst_transform: Group | null; worst_task: Group | null; fragile_cases: Record<string, string[]>; warnings: string[];
+}
+export interface FailuresReport {
+  cases_with_a_result: number; failed_cases: number;
+  labels: { label: string; meaning: string; cases: number; share: number; case_ids: string[] }[];
+  clusters: { id: number; size: number; share: number; terms: string[]; labels: Record<string, number>; tasks: Record<string, number>; cohesion: number; follow_up: string; examples: string[] }[];
+  unclustered: string[]; rag_stages: Record<string, number>; needs_review: string[];
+  priority: { name: string; cases: number; severity: number; weight: number; frequency_pct: number; exposure: number; detectability: number; score: number }[];
+}
+export interface SliceRow { dimension: string; value: string; n: number; rate: number | null; ci: Interval; rest_rate: number | null; p_value: number | null; weak: boolean; underpowered: boolean }
+export interface CaseDetail {
+  case_id: string; task: string; metadata: Record<string, unknown>;
+  executions: {
+    model: string; repetition: number; status: string; input: Record<string, string>; expected: Record<string, unknown>; output: string | null; error: string | null;
+    attempts: { attempt: number; ok: boolean; error: string | null }[]; labels: string[];
+    results: { evaluator: string; rubric_version: string; passed: boolean; score: number; rationale: string; details: Record<string, unknown> }[];
+    rag: { stage: string | null; evidence_in_context: boolean | null; evidence_position: number | null; explanation: string };
+  }[];
+}
+export interface Baseline { name: string; run_id: string; model: string | null; set_at: string }
