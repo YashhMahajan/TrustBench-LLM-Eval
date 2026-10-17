@@ -61,11 +61,13 @@ Phase 3 modules: stats, rundata, scorecard, operations, comparison, slices, cali
 
 Phase 4 modules: transforms, paraphrase, robustness, eval_injection, adversary, proposals, failures, clustering, rag, priority, failure_report, frontier. Table added: proposed_cases. Suite added: injection.
 
+Phase 6 modules: api_data (read routes), demo (made-up data), dashboard/ (Next.js app).
+
 Phase 5 modules: tenancy, redact, crypto, dataprotect, audit, traces, api, sdk, jobs, handlers, online, drift, production_tests, monitor, cli_server. Tables added: workspaces, api_keys, audit_log, production_traces, trace_spans, trace_evaluations, jobs.
 
 Open items before the first release:
 - Tables are created with `create_all`. Add Alembic migrations (a column change needs one).
-- Runs, datasets, baselines and proposals from the CLI are not scoped by workspace. Scope them when Phase 6 serves them over the API.
+- Runs, datasets and baselines are scoped by workspace since Phase 6. Names of baselines are still global.
 - The server has no TLS, rate limit or key expiry.
 - Postgres, a real Redis server and live model APIs are not tested yet (no services on the development machine).
 - A Dockerfile and compose services for the API and the worker.
@@ -124,7 +126,7 @@ Each phase gives a working system. Each phase has tests before we continue.
 - Online evaluation by sampling. Drift detection (PSI, KS test).
 - Trace -> proposed regression test -> human approval -> suite.
 
-### Phase 6 — Dashboard
+### Phase 6 — Dashboard (DONE: Overview, Experiments with run detail, Compare and gate, Benchmarks with proposal review, Models, Production monitor, Settings. Not built: an Evaluators page for judge validation, and Reports)
 Pages: Overview, Experiments, Benchmarks, Models, Evaluators, Reliability Lab, Failure Explorer, Regression Center, Production Monitor, Settings.
 - Each number links to the test cases that make it.
 - Each score shows its CI and sample size.

@@ -85,3 +85,18 @@ def test_drift_command(tmp_path, monkeypatch):
     assert out.exit_code == 0 and "latency (ms)" in out.output and "large" in out.output and "not proof" in out.output
     assert runner.invoke(app, ["drift", "nobody"]).exit_code == 1
     assert "At least 30" in runner.invoke(app, ["drift", "acme", "--name", "none-such"]).output
+
+
+def test_demo_command_makes_a_workspace_and_a_working_key(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    from trustbench.api import create_app
+    url = f"sqlite:///{tmp_path}/t.db"
+    monkeypatch.setenv("TRUSTBENCH_DATABASE_URL", url)
+    out = runner.invoke(app, ["demo", "--scale", "0.2"])
+    assert out.exit_code == 0 and "Demo workspace 'demo' is ready" in out.output
+    key = next(w for w in out.output.split() if w.startswith("tb_"))
+    client = TestClient(create_app(init_db(make_engine(url))))
+    runs = client.get("/v1/runs", headers={"Authorization": f"Bearer {key}"}).json()["runs"]
+    assert {r["name"] for r in runs} == {"main", "release-candidate", "model bake-off"}
+    again = runner.invoke(app, ["demo"])
+    assert again.exit_code == 1 and "exists already" in again.output

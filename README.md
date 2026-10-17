@@ -92,6 +92,31 @@ A model that passes the original but fails a copy is fragile. The report keeps f
 
 The `injection` suite checks only what the model writes. It does not test your permissions, your sandbox or your data limits.
 
+## The dashboard
+
+A web dashboard shows everything above: release readiness, runs with intervals, the cases behind every number, comparisons, the gate history, production monitoring, drift, proposed tests to review, and the cost frontier. It runs as its own small server (Next.js) and talks to the API.
+
+Try it with sample data (no API keys needed):
+
+```bash
+pip install -e .
+trustbench demo                      # makes a "demo" workspace and prints an API key
+trustbench serve                     # the API, on port 8000
+cd dashboard && pnpm install && pnpm dev     # the dashboard, on port 3000
+```
+
+Open http://localhost:3000 and paste the key. The demo models are made up. The data shows how TrustBench works. It says nothing about real models.
+
+For your own data, use your own workspace and key: `trustbench key create --workspace default --role read`. Results from `trustbench run` belong to the workspace `default`.
+
+| Setting | Use |
+|---|---|
+| `TRUSTBENCH_API_URL` | Where the dashboard finds the API. Default `http://127.0.0.1:8000` |
+
+How to read the screens: every rate is drawn as a bar with its 95% interval and its number of cases. A short bar is a sure result. A solid bar is measured, a hatched bar is a judge model's estimate, and a dotted outline is something nobody measured. Verdicts are stamps: pass, fail, inconclusive, incomplete. The key is kept in a cookie that scripts in the browser cannot read.
+
+Only an admin key can change settings. A read key cannot approve tests. Keys are made and revoked in a terminal.
+
 ## Watch a system in production
 
 1. Make a workspace and a key, then start the server:

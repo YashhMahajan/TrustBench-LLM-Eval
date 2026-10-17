@@ -54,13 +54,13 @@ export default async function Overview() {
               ) : (
                 <div style={{ border: "1px solid var(--rule)", borderRadius: 8 }}>
                   {open.slice(0, 5).map((c) => (
-                    <div key={c.rule} className="rowlink" style={{ alignItems: "center" }}>
+                    <div key={c.rule} className="rowlink" style={{ alignItems: "center", flexWrap: "wrap" }}>
                       <Stamp status={c.status} />
-                      <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ minWidth: 0, flex: "1 1 160px" }}>
                         <div className="mono" style={{ fontWeight: 500 }}>{c.rule.replace(/_/g, " ")}</div>
                         <div className="hint" style={{ overflowWrap: "anywhere" }}>needs {c.required}</div>
                       </div>
-                      <div className="mono hint" style={{ maxWidth: "46%", textAlign: "right", overflowWrap: "anywhere" }}>{c.observed}</div>
+                      <div className="mono hint" style={{ flex: "1 1 200px", textAlign: "right", overflowWrap: "anywhere" }}>{c.observed}</div>
                     </div>
                   ))}
                 </div>
