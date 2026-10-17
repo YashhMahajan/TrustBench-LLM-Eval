@@ -292,3 +292,14 @@ a { color: inherit; text-decoration: none; }
 .decision[open] > summary { background: var(--surface-2); }
 .kv dd.fail { color: var(--fail); } .kv dd.pass { color: var(--pass); }
 .tbl tr[aria-selected="true"] { background: var(--accent-soft); }
+
+/* ---- Notices, forms in panels ---------------------------------------------------------------------- */
+
+.notice { padding: 11px 14px; border-radius: 8px; border: 1px solid var(--rule-strong); background: var(--surface); margin-bottom: 16px; font-size: 13.5px; animation: drawer-in 220ms var(--ease-out) both; }
+.notice--error { border-color: var(--fail); background: var(--fail-soft); } .notice--done { border-color: var(--pass); background: var(--pass-soft); }
+.check { display: flex; gap: 10px; align-items: flex-start; }
+.check input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); }
+.seg-bar { display: flex; height: 10px; border-radius: 3px; overflow: hidden; gap: 1px; background: var(--rule); }
+.seg-bar > span { background: var(--accent); }
+.seg-bar > span:nth-child(2n) { background: var(--accent-strong); opacity: 0.7; }
+.seg-bar > span:nth-child(3n) { opacity: 0.45; }

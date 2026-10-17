@@ -91,3 +91,22 @@ export interface CaseDetail {
   }[];
 }
 export interface Baseline { name: string; run_id: string; model: string | null; set_at: string }
+
+export interface TraceRow {
+  trace_id: string; name: string; started_at: string; duration_ms: number; status: "ok" | "error"; error_type: string | null; model: string | null;
+  prompt_version: string | null; input_tokens: number | null; output_tokens: number | null; cost_usd: number | null; feedback: number | null;
+  sampled: boolean; eval_state: string; has_content: boolean;
+}
+export interface Flagged { trace_id: string; name: string; reasons: string[]; has_content: boolean }
+export interface Candidate {
+  name: string; quality: number | null; quality_ci: Interval; cases: number; cost_per_success: number | null; p95_seconds: number | null;
+  on_frontier: boolean; dominated_by: string[]; unknown: string[]; feasible: boolean | null; why_not_feasible: string[]; quality_uncertain: boolean;
+}
+export interface DatasetRow { id: number; name: string; version: string; cases: number; tasks: Record<string, number>; runs: number; created_at: string }
+export interface DatasetDetail { id: number; name: string; version: string; cases: number; issues: { severity: string; code: string; case_ids: string[]; message: string }[];
+  preview: { id: string; task: string; question: string; evaluators: string[]; metadata: Record<string, unknown> }[] }
+export interface Settings {
+  store_content: boolean; redact: boolean; retention_days: number; sample_rate: number; max_payload_chars: number;
+  extra_redactions: string[]; online_evaluators: { type: string }[]; online_judge: string | null;
+}
+export interface AuditEntry { id: number; key_id: number | null; action: string; target: string; at: string }
