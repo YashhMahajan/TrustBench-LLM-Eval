@@ -104,3 +104,7 @@ async def evaluate(evaluation: dict, inp: dict, expected: dict, output: str, jud
         except Exception as e:
             outcomes.append(Outcome(name, "?", False, 0.0, f"Evaluator error: {e}", {"error": True}))
     return outcomes
+
+
+# These imports register more evaluators. They must stay at the end of the file.
+from . import eval_schema  # noqa: E402,F401
