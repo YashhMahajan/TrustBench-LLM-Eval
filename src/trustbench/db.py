@@ -287,6 +287,19 @@ class TraceSpan(Base):
     attrs: Mapped[dict] = mapped_column(Json, default=dict)
 
 
+class AuditLog(Base):
+    """Who did something sensitive. Rows are only added."""
+
+    __tablename__ = "audit_log"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(String(32), index=True)
+    key_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    action: Mapped[str] = mapped_column(String(50))      # For example trace.reveal
+    target: Mapped[str] = mapped_column(String(200), default="")
+    created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
+
+
 def make_engine(url: str) -> Engine:
     if url.startswith("sqlite") and (":memory:" in url or url.endswith("//")):
         return create_engine(
