@@ -149,3 +149,17 @@ def benjamini_hochberg(p_values: list[float], q: float = 0.05) -> list[bool]:
     for rank, i in enumerate(order, start=1):
         keep[i] = rank <= cutoff
     return keep
+
+
+def two_group_permutation_p(group: list[float], rest: list[float], n_perm: int = 1000, seed: int = 0) -> float:
+    """One-sided: is the mean of the group lower than the mean of the rest? Works for any scores."""
+    if not group or not rest:
+        return 1.0
+    observed = mean(group) - mean(rest)
+    pool, k = list(group) + list(rest), len(group)
+    rng = random.Random(seed)
+    extreme = 0
+    for _ in range(n_perm):
+        rng.shuffle(pool)
+        extreme += mean(pool[:k]) - mean(pool[k:]) <= observed
+    return (extreme + 1) / (n_perm + 1)
