@@ -144,17 +144,35 @@ def redaction_precision(ctx: Ctx):
 
 # ---- The judge tools: are the numbers about a judge right, and do the bias tests find bias? ----------
 
-@check("judge", "Agreement numbers about a judge are unbiased and their interval is honest", "kappa within 0.03 of the true value, interval covers 92% to 99%")
+def _exact_judge_model() -> tuple[float, float]:
+    """The true agreement and the true weighted kappa of the simulated judge, from the exact joint distribution.
+
+    The human label is uniform on 0..3. The judge repeats it with chance 0.7. Otherwise it moves one step up or down
+    with equal chance, and a step off the scale stays put. This is written out by hand, not with the code under test.
+    """
+    joint = [[0.0] * 4 for _ in range(4)]
+    for h in range(4):
+        joint[h][h] += 0.25 * 0.7
+        for step in (-1, 1):
+            joint[h][min(3, max(0, h + step))] += 0.25 * 0.3 * 0.5
+    rows = [sum(joint[i]) for i in range(4)]
+    cols = [sum(joint[i][j] for i in range(4)) for j in range(4)]
+    weight = lambda i, j: ((i - j) / 3) ** 2
+    observed = sum(weight(i, j) * joint[i][j] for i in range(4) for j in range(4))
+    expected = sum(weight(i, j) * rows[i] * cols[j] for i in range(4) for j in range(4))
+    return sum(joint[i][i] for i in range(4)), 1 - observed / expected
+
+
+@check("judge", "Agreement numbers about a judge are unbiased and their interval is honest", "kappa within 0.03 of the exact value, interval covers 92% to 99%")
 def judge_instrument(ctx: Ctx):
     rng = ctx.rng("judge")
+    true_agree, true_wk = _exact_judge_model()
 
     def draw(n):
         human = [rng.randrange(4) for _ in range(n)]
         judge = [h if rng.random() < 0.7 else min(3, max(0, h + rng.choice((-1, 1)))) for h in human]
         return human, judge
 
-    big_h, big_j = draw(60000)
-    true_wk, true_agree = weighted_kappa(big_h, big_j, [0, 1, 2, 3]), percent_agreement(big_h, big_j)
     trials, est, hit = ctx.n(300), [], 0
     for _ in range(trials):
         h, j = draw(100)
@@ -162,7 +180,7 @@ def judge_instrument(ctx: Ctx):
         lo, hi = wilson_interval(sum(x == y for x, y in zip(h, j)), 100)
         hit += lo <= true_agree <= hi
     bias, cover = sum(est) / trials - true_wk, hit / trials
-    return abs(bias) <= 0.03 and 0.92 <= cover <= 0.99, f"bias {bias:+.3f}, coverage {cover:.1%}", f"true agreement {true_agree:.3f}, true weighted kappa {true_wk:.3f}, 100 labels per trial"
+    return abs(bias) <= 0.03 and 0.92 <= cover <= 0.99, f"bias {bias:+.3f}, coverage {cover:.1%}", f"exact agreement {true_agree:.3f}, exact weighted kappa {true_wk:.3f}, 100 labels per trial"
 
 
 class _Scripted(Provider):

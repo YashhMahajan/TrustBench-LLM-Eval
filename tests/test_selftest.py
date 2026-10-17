@@ -204,3 +204,59 @@ def test_a_model_change_without_a_migration_is_noticed():
         assert "The migrations build exactly the schema of the models" in failed_names(["invariants"])
     finally:
         Base.metadata.tables["jobs"]._columns.remove(Base.metadata.tables["jobs"].c.forgotten)
+
+
+# ---- The remaining checks: each must also fail when the code it watches is broken ---------------------------------
+
+def test_a_paired_interval_that_is_too_narrow_or_too_sure_is_noticed(monkeypatch):
+    broken(monkeypatch, "trustbench.selftest.checks_stats.paired_binary_ci",
+           lambda a, b: ((sum(b) - sum(a)) / len(a) - 0.005, (sum(b) - sum(a)) / len(a) + 0.005))     # The bootstrap's false certainty.
+    names = failed_names(["statistics"])
+    assert "Paired interval covers the true change, also at the extremes" in names
+    assert "Paired interval does not claim certainty from a few cases" in names
+
+
+def test_a_test_with_no_power_is_noticed(monkeypatch):
+    broken(monkeypatch, "trustbench.selftest.checks_stats.mcnemar_exact", lambda a, b, alt="two-sided": 1.0)
+    assert "McNemar test: a real 12 point drop is found" in failed_names(["statistics"])
+
+
+def test_a_wrong_chi_square_tail_is_noticed(monkeypatch):
+    broken(monkeypatch, "trustbench.selftest.checks_stats.chi2_sf", lambda x, df: 0.5)
+    assert "Chi-square tail matches the published table" in failed_names(["statistics"])
+
+
+def test_redaction_that_damages_ordinary_text_is_noticed(monkeypatch):
+    import re
+    broken(monkeypatch, "trustbench.selftest.checks_eval.redact", lambda text, custom=None: (re.sub(r"\d+", "[NUMBER]", text), {}))
+    assert "Ordinary text is left alone" in failed_names(["redaction"])
+
+
+def test_a_biased_agreement_measure_is_noticed(monkeypatch):
+    broken(monkeypatch, "trustbench.selftest.checks_eval.weighted_kappa", lambda a, b, levels, kind="quadratic": 0.95)
+    assert "Agreement numbers about a judge are unbiased and their interval is honest" in failed_names(["judge"])
+
+
+def test_unfair_test_copies_that_look_fragile_are_noticed(monkeypatch):
+    from trustbench.robustness import RobustnessReport, Rate
+    blamed = RobustnessReport(pairs=122, break_rate=Rate(30, 100, (0.2, 0.4)), consistency=Rate(70, 122, (0.5, 0.6)))
+    broken(monkeypatch, "trustbench.selftest.checks_system.robustness_report", lambda records: blamed)
+    names = failed_names(["robustness"])
+    assert "A model that is truly robust shows no fragility" in names
+
+
+def test_a_robustness_report_that_finds_nothing_is_noticed(monkeypatch):
+    from trustbench.robustness import RobustnessReport, Rate
+    blind = RobustnessReport(pairs=122, break_rate=Rate(0, 100, (0.0, 0.04)), consistency=Rate(122, 122, (0.97, 1.0)))
+    broken(monkeypatch, "trustbench.selftest.checks_system.robustness_report", lambda records: blind)
+    assert "A fragile model is exposed" in failed_names(["robustness"])
+
+
+def test_every_check_has_a_test_that_breaks_the_code_it_watches():
+    """A check that was never seen to fail proves nothing. Add a sabotage test when you add a check."""
+    from pathlib import Path
+    from trustbench import selftest
+    selftest._load()
+    source = Path(__file__).read_text()
+    missing = [name for _, name, _, _ in selftest.REGISTRY if f'"{name}"' not in source]
+    assert not missing, f"No sabotage test for: {missing}"
