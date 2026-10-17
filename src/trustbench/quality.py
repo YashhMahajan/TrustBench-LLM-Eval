@@ -127,7 +127,8 @@ def check_balance(cases: list[CaseSpec]) -> list[Issue]:
 
 
 PII_PATTERNS = {
-    "email address": re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b"),
+    # Reserved example domains (RFC 2606) hold no real person's data.
+    "email address": re.compile(r"\b[\w.+-]+@(?!example\.(?:com|org|net)\b)[\w-]+\.[\w.-]+\b"),
     "US social security number": re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
     "phone number": re.compile(r"(?<!\d)(?:\+\d{1,3}[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}(?!\d)"),
 }

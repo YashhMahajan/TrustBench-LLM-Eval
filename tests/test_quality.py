@@ -64,12 +64,13 @@ def test_imbalance_needs_enough_cases_and_a_dominant_value():
 def test_pii_is_found_and_never_repeated():
     from trustbench.quality import check_pii
     cases = [
-        case("a", "Write to ana@example.com now"),
+        case("a", "Write to ana@gmail.com now"),
         case("b", "Call 415-555-0134 today"),
         case("c", "SSN 123-45-6789"),
         case("d", "Card 4111 1111 1111 1111 expires soon"),
         case("e", "Order number 1234 5678 9012 3456 was late"),  # Fails the Luhn check.
         case("f", "No personal data here"),
+        case("g", "Write to sam@example.org"),  # A reserved example domain.
     ]
     issues = check_pii(cases)
     assert sorted((i.case_ids[0], i.message) for i in issues) == [
