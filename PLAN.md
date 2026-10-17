@@ -59,6 +59,8 @@ Phase 2 modules: eval_* (evaluators), judge, pairwise, claims, verify, hallucina
 
 Phase 3 modules: stats, rundata, scorecard, operations, comparison, slices, calibration, policy, gate, baselines, summary, cli_stats. Tables added: baselines, release_decisions.
 
+Phase 4 modules: transforms, paraphrase, robustness, eval_injection, adversary, proposals, failures, clustering, rag, priority, failure_report, frontier. Table added: proposed_cases. Suite added: injection.
+
 Open item: tables are created with `create_all`. A change to a table needs a migration tool (Alembic). We add it before the first release.
 
 Invariants (we enforce them in code and tests):
@@ -99,7 +101,7 @@ Each phase gives a working system. Each phase has tests before we continue.
 - Release policy YAML. Status: Pass, Fail, Inconclusive, Incomplete.
 - CLI `compare` and `gate`. Non-zero exit code on Fail.
 
-### Phase 4 — Robustness and failures
+### Phase 4 — Robustness and failures (DONE, except distributed workers and Redis: moved to Phase 5)
 - Metamorphic transforms with invariants: paraphrase, format, reorder, noise, evidence position.
 - Robustness metrics: transformation failure rate, degradation, consistency, worst slice.
 - Prompt-injection suite for RAG and tool calls.

@@ -30,6 +30,12 @@ No key? Try the demo: `trustbench run --model mock:smoke`
 | `trustbench baseline set NAME RUN_ID` | Name a run as a baseline |
 | `trustbench policy init` | Write a policy file with comments |
 | `trustbench calibration RUN_ID` | Brier score, calibration error, AUROC, risk and coverage |
+| `trustbench robustness build DATASET` | Add changed copies of each case (typos, format, moved evidence, paraphrase) |
+| `trustbench robustness report RUN_ID` | Break rate, degradation, consistency, weakest transform |
+| `trustbench failures RUN_ID` | How cases failed, recurring patterns, retrieval stage, what to fix first |
+| `trustbench proposals generate RUN_ID` | Propose new test cases from failures |
+| `trustbench proposals list / approve / edit / reject / export` | Review the proposals. Export the approved ones as a dataset |
+| `trustbench frontier RUN_ID...` | Compare models on quality, cost and latency |
 
 ## Decide if a model is ready
 
@@ -63,6 +69,20 @@ Every pass rate has a 95% interval and the number of cases. A small run gives a 
 
 A failed model call counts as a failed case. A skipped case or a broken evaluator is left out and reported, because it says nothing about the model.
 
+## Find weak spots
+
+**Is the model stable?** `trustbench robustness build grounded` writes `grounded_robust.jsonl`: the original cases plus copies with extra spaces, a different wrapper, typos, shuffled sentences or the answer moved or hidden. Every copy is checked, so the right answer does not change. Run that file, then `trustbench robustness report RUN_ID`.
+
+A model that passes the original but fails a copy is fragile. The report keeps four numbers apart: break rate, degradation, consistency (a model can be consistent and consistently wrong) and the weakest transform.
+
+**Why did cases fail?** `trustbench failures RUN_ID` gives each failed case labels (wrong answer, unsupported claim, followed an injection, ...), groups similar failures, says if the evidence reached the model, and ranks what to fix first. The ranking shows its four factors: severity, frequency, exposure and detectability. Patterns show what failures share. They do not prove a cause.
+
+**Keep old failures fixed.** `trustbench proposals generate RUN_ID` proposes new cases from failed ones. Nothing joins a dataset until a person approves it. Answers that a model wrote must be checked by a person first. `trustbench proposals export DATASET` writes the approved cases as a new dataset version.
+
+**Which model is worth its price?** `trustbench frontier RUN_ID --min-quality 0.9 --max-cost 0.01` lists the models that nobody beats on quality, cost and latency together. A model with no known price is listed apart. An unknown cost is never counted as zero.
+
+The `injection` suite checks only what the model writes. It does not test your permissions, your sandbox or your data limits.
+
 ## Built-in suites
 
 Use a name with `--dataset`. You can also give the path to your own `.jsonl`, `.json` or `.csv` file.
@@ -78,6 +98,7 @@ Use a name with `--dataset`. You can also give the path to your own `.jsonl`, `.
 | `safety` | Refuse harmful requests, answer safe ones | No |
 | `calibration` | Answer plus stated confidence | No |
 | `hallucination` | False premises, invented sources, wrong sources | Yes |
+| `injection` | Ten hidden instructions in documents and tool results | No |
 
 A judge is a model that grades open answers. Choose a strong model that is not the model under test:
 `trustbench run --dataset hallucination --judge anthropic:claude-sonnet-5-5`

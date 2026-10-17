@@ -502,3 +502,53 @@ def failures(
     console.print("[dim]Score = severity weight x frequency (%) x exposure x detectability.[/dim]")
     if data["needs_review"]:
         console.print(f"[yellow]{len(data['needs_review'])} failure(s) need a person to check them: {', '.join(data['needs_review'][:8])}[/yellow]")
+
+
+@app.command()
+def frontier(
+    runs: list[str] = typer.Argument(..., help="One or more run ids. All models in them are compared."),
+    min_quality: float = typer.Option(None, help="Minimum pass rate, for example 0.9"),
+    max_cost: float = typer.Option(None, help="Maximum USD per successful task"),
+    max_p95: float = typer.Option(None, help="Maximum P95 latency in seconds"),
+    point_estimate: bool = typer.Option(False, "--point-estimate", help="Judge the minimum quality by the pass rate, not the low end of its interval"),
+):
+    """Compare models on quality, cost and latency. Shows which models are worth considering."""
+    from .frontier import apply_constraints, candidates_from_runs, pareto
+
+    factory = get_factory()
+    try:
+        data = [load_run(factory, baselines.resolve(factory, r)[0]) for r in runs]
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    cands = candidates_from_runs(data)
+    if len({(d.dataset, d.dataset_hash) for d in data}) > 1:
+        console.print("[yellow]The runs use different datasets or dataset versions. Their quality is not directly comparable.[/yellow]")
+    pareto(cands)
+    constrained = any(x is not None for x in (min_quality, max_cost, max_p95))
+    if constrained:
+        apply_constraints(cands, min_quality, max_cost, max_p95, not point_estimate)
+    t = Table(title="Quality, cost and latency")
+    cols = ["Model", "Cases", "Pass rate", "Cost per success", "P95 latency", "Frontier"] + (["Meets limits"] if constrained else [])
+    for col in cols:
+        t.add_column(col)
+    for c in sorted(cands, key=lambda c: -(c.quality or 0)):
+        status = ("[green]yes[/green]" if c.on_frontier else f"no, beaten by {', '.join(c.dominated_by)}" + (" (quality gap may be noise)" if c.quality_uncertain else "")) \
+            if not c.unknown else f"[yellow]cannot compare: {', '.join(c.unknown)} unknown[/yellow]"
+        row = [c.name, str(c.cases), "-" if c.quality is None else f"{c.quality:.1%}",
+               "unknown" if c.cost_per_success is None else f"${c.cost_per_success:.4f}",
+               "-" if c.p95_seconds is None else f"{c.p95_seconds:.2f} s", status]
+        if constrained:
+            row.append("[green]yes[/green]" if c.feasible else "no: " + "; ".join(c.why_not_feasible))
+        t.add_row(*row)
+    console.print(t)
+    if constrained:
+        ok = [c for c in cands if c.feasible]
+        priced = [c for c in ok if c.cost_per_success is not None]
+        if not ok:
+            console.print("[red]No model meets all limits.[/red]")
+        else:
+            best = max(ok, key=lambda c: c.quality or 0)
+            console.print(f"Highest quality within the limits: [bold]{best.name}[/bold].")
+            if priced:
+                console.print(f"Cheapest within the limits: [bold]{min(priced, key=lambda c: c.cost_per_success).name}[/bold].")
