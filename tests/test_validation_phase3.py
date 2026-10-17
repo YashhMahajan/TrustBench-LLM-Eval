@@ -55,7 +55,8 @@ def test_a_broken_task_is_found_by_comparison_slices_and_gate(factory, big_versi
     cand = run(factory, big_version, model(break_task="math", break_every=2))   # Half of the math cases break.
     cmp = compare_runs(base, cand)
     assert cmp.overall.verdict == "meaningful_regression" and cmp.by_task["math"].verdict == "meaningful_regression"
-    assert cmp.by_task["qa"].diff == 0 and cmp.by_task["qa"].verdict == "equivalent"
+    qa = cmp.by_task["qa"]
+    assert qa.diff == 0 and qa.ci[0] < 0 < qa.ci[1] and "regression" not in qa.verdict      # 40 equal cases: cannot tell, and no false alarm.
     hits = [s for s in regression_scan(base.records, cand.records) if s.regression]
     assert [(s.dimension, s.value) for s in hits][0] == ("task", "math")
     policy = ReleasePolicy(min_cases=100, critical_failures_allowed=0, overall=Rule(maximum_regression=0.02),
@@ -69,7 +70,7 @@ def test_a_broken_task_is_found_by_comparison_slices_and_gate(factory, big_versi
 def test_an_unchanged_candidate_passes_the_same_gate(factory, big_version):
     base = run(factory, big_version, model())
     cand = run(factory, big_version, model())
-    policy = ReleasePolicy(min_cases=100, critical_failures_allowed=0, overall=Rule(minimum_score=0.9, maximum_regression=0.02))
+    policy = ReleasePolicy(min_cases=100, critical_failures_allowed=0, overall=Rule(minimum_score=0.9, maximum_regression=0.05))   # 160 cases can certify a limit of about 5 points
     d = evaluate_gate(policy, cand, baseline=base)
     assert d.status == "pass" and d.allowed
 

@@ -75,3 +75,122 @@ def test_the_command_exit_codes_and_json(monkeypatch):
     monkeypatch.setattr(checks_eval, "redact", lambda text, custom=None: (text, {}))
     bad = runner.invoke(app, ["selftest", "--quick", "--area", "redaction"])
     assert bad.exit_code == 1 and "FAIL" in bad.output
+
+
+# ---- The whole-system checks: they pass on the real code and fail on code that is broken on purpose ----------------
+
+SYSTEM = ["regression", "robustness", "integrity", "invariants", "privacy"]
+
+
+def test_the_system_checks_pass_on_the_real_code():
+    results = run_selftest(quick=True, areas=SYSTEM)
+    assert len(results) >= 12
+    assert not [(r.name, r.observed, r.detail) for r in results if not r.passed]
+
+
+def broken(monkeypatch, target, replacement):
+    mod, _, attr = target.rpartition(".")
+    import importlib
+    monkeypatch.setattr(importlib.import_module(mod), attr, replacement)
+
+
+def failed_names(areas):
+    return {r.name for r in run_selftest(quick=True, areas=areas) if not r.passed}
+
+
+def test_a_gate_that_lets_everything_through_is_noticed(monkeypatch):
+    from trustbench.gate import Decision
+    broken(monkeypatch, "trustbench.selftest.checks_system.evaluate_gate", lambda *a, **k: Decision("pass", [], True))
+    assert "Every kind of injected failure is caught, located and blocked" in failed_names(["regression"])
+
+
+def test_a_gate_that_blocks_everything_is_noticed(monkeypatch):
+    from trustbench.gate import Decision
+    broken(monkeypatch, "trustbench.selftest.checks_system.evaluate_gate", lambda *a, **k: Decision("fail", [], False))
+    assert "The same output is never blocked; equal systems rarely are" in failed_names(["regression"])
+
+
+def test_a_comparison_that_sees_no_change_is_noticed(monkeypatch):
+    from trustbench import comparison
+    real = comparison.compare_runs
+
+    def blind(base, cand, bm=None, cm=None, min_effect=0.01):
+        return real(base, base, bm, bm, min_effect)       # Always compares the baseline with itself.
+    broken(monkeypatch, "trustbench.selftest.checks_system.compare_runs", blind)
+    assert "Every kind of injected failure is caught, located and blocked" in failed_names(["regression"])
+
+
+def test_a_diagnosis_that_never_blames_retrieval_is_noticed(monkeypatch):
+    from trustbench.rag import RagDiagnosis
+    broken(monkeypatch, "trustbench.selftest.checks_system.diagnose", lambda rec: RagDiagnosis("evidence_ignored", True, 0.5))
+    assert "Lost evidence is blamed on retrieval, not on the model" in failed_names(["regression"])
+
+
+def test_an_unfair_transform_is_noticed(monkeypatch):
+    from trustbench import transforms
+    from trustbench.transforms import Transform
+
+    def adds_a_number(case, rng):
+        key = "prompt" if "prompt" in case.input else "question" if "question" in case.input else None
+        return case.model_copy(update={"input": {**case.input, key: case.input[key] + " 999"}}) if key else None
+    patched = {**transforms.TRANSFORMS, "typos": Transform("typos", "broken", adds_a_number)}
+    monkeypatch.setattr(transforms, "TRANSFORMS", patched)
+    broken(monkeypatch, "trustbench.selftest.checks_system.TRANSFORMS", patched)
+    assert "Our transforms never change the right answer" in failed_names(["robustness"])
+
+
+def test_a_dataset_check_that_finds_nothing_is_noticed(monkeypatch):
+    broken(monkeypatch, "trustbench.quality.check", lambda cases: [])
+    assert "Planted dataset defects are found, and a clean dataset raises no alarm" in failed_names(["integrity"])
+
+
+def test_a_dataset_check_that_cries_wolf_is_noticed(monkeypatch):
+    from trustbench.quality import Issue
+    broken(monkeypatch, "trustbench.quality.check", lambda cases: [Issue("warning", "duplicate", [c.id for c in cases[:2]], "x")])
+    assert "Planted dataset defects are found, and a clean dataset raises no alarm" in failed_names(["integrity"])
+
+
+def test_broken_data_rules_are_noticed(monkeypatch):
+    from trustbench import engine
+    real = engine.rescore
+
+    def rescore_with_a_call(factory, run_id, judge_spec=None, provider_factory=None):
+        raise RuntimeError("re-scoring touched the model")
+    broken(monkeypatch, "trustbench.selftest.checks_system.rescore", rescore_with_a_call)
+    assert "The seven rules that make results auditable hold" in failed_names(["invariants"])
+
+
+def test_a_leak_of_personal_data_is_noticed(monkeypatch):
+    from trustbench import traces
+    from trustbench.dataprotect import Protected
+    import hashlib
+    broken(monkeypatch, "trustbench.traces.redact", lambda text, custom=None: (text, {}))
+    broken(monkeypatch, "trustbench.traces.protect",
+           lambda policy, text: Protected(None, None, text, hashlib.sha256(text.encode()).hexdigest(), len(text), False, {}))
+    assert "Planted personal data never reaches the database" in failed_names(["privacy"])
+
+
+def test_a_workspace_that_can_read_another_is_noticed(monkeypatch):
+    broken(monkeypatch, "trustbench.api_data.owned", lambda column, ws: True)
+    assert "Workspaces cannot read each other's data" in failed_names(["privacy"])
+
+
+def test_retention_that_deletes_nothing_is_noticed(monkeypatch):
+    broken(monkeypatch, "trustbench.selftest.checks_system.purge_expired", lambda factory, now=None: 0)
+    assert "Retention deletes exactly the traces that are past due" in failed_names(["privacy"])
+
+
+def test_a_queue_that_forgets_dead_workers_is_noticed(monkeypatch):
+    from sqlalchemy import select
+    from trustbench.db import JobRow, utcnow
+    from trustbench.jobs import DbQueue, Job
+
+    def claim_new_only(self, worker_id, kinds=None, lease_seconds=120):
+        with self.factory.begin() as s:
+            row = s.scalars(select(JobRow).where(JobRow.state == "queued").order_by(JobRow.id)).first()
+            if row is None:
+                return None
+            row.state, row.attempts, row.worker_id = "running", row.attempts + 1, worker_id
+            return Job(str(row.id), row.kind, row.payload, row.workspace_id, row.attempts, row.max_attempts)
+    monkeypatch.setattr(DbQueue, "claim", claim_new_only)
+    assert "No task is lost when a worker dies" in failed_names(["privacy"])

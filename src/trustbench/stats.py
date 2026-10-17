@@ -80,6 +80,30 @@ def paired_bootstrap(a, b, n_boot: int = 4000, alpha: float = 0.05, seed: int = 
     return mean(d), *bootstrap_ci(d, n_boot=n_boot, alpha=alpha, seed=seed)
 
 
+def paired_binary_ci(a, b, z: float = 1.96) -> tuple[float, float] | None:
+    """95% interval for the change in pass rate (b minus a) when the same cases got a pass or a fail twice.
+
+    Newcombe's method: Wilson intervals for both rates, combined with the correlation of the pairs.
+    Unlike the bootstrap, it does not claim certainty when every difference points the same way in a small sample.
+    """
+    n = len(a)
+    if n == 0 or n != len(b):
+        return None
+    both = sum(x == 1 and y == 1 for x, y in zip(a, b))
+    only_a = sum(x == 1 and y == 0 for x, y in zip(a, b))
+    only_b = sum(x == 0 and y == 1 for x, y in zip(a, b))
+    neither = n - both - only_a - only_b
+    p1, p2 = (both + only_a) / n, (both + only_b) / n
+    l1, u1 = wilson_interval(both + only_a, n)
+    l2, u2 = wilson_interval(both + only_b, n)
+    denom = math.sqrt((both + only_a) * (only_b + neither) * (both + only_b) * (only_a + neither))
+    phi = (both * neither - only_a * only_b) / denom if denom else 0.0
+    d = p2 - p1
+    lo = d - math.sqrt((p2 - l2) ** 2 + (u1 - p1) ** 2 - 2 * phi * (p2 - l2) * (u1 - p1))
+    hi = d + math.sqrt((u2 - p2) ** 2 + (p1 - l1) ** 2 - 2 * phi * (u2 - p2) * (p1 - l1))
+    return max(-1.0, lo), min(1.0, hi)
+
+
 def paired_permutation_p(a, b, alternative: str = "two-sided", n_perm: int = 10000, seed: int = 0) -> float:
     """Sign-flip test. If A and B were equal, each difference could have either sign.
 

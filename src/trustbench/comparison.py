@@ -7,7 +7,7 @@ because both systems answered the same questions.
 from dataclasses import dataclass, field
 
 from .rundata import Record, RunData, case_outcomes
-from .stats import mcnemar_exact, mean, paired_bootstrap, paired_permutation_p, verdict
+from .stats import mcnemar_exact, mean, paired_binary_ci, paired_bootstrap, paired_permutation_p, verdict
 
 MIN_PAIRS = 30
 
@@ -40,8 +40,12 @@ def _delta(label: str, base: list[float], cand: list[float], min_effect: float, 
     n = len(base)
     if n == 0:
         return Delta(label, 0, None, None, None, None, None, "none", "inconclusive")
-    diff, lo, hi = paired_bootstrap(base, cand, n_boot=n_boot)
     binary = all(x in (0.0, 1.0) for x in base + cand)
+    if binary:
+        diff = mean(cand) - mean(base)
+        lo, hi = paired_binary_ci(base, cand)
+    else:
+        diff, lo, hi = paired_bootstrap(base, cand, n_boot=n_boot)
     if binary:
         a_only = sum(1 for x, y in zip(base, cand) if x == 1 and y == 0)
         b_only = sum(1 for x, y in zip(base, cand) if x == 0 and y == 1)

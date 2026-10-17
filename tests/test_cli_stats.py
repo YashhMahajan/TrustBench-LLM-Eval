@@ -35,7 +35,7 @@ def test_compare_shows_a_clear_regression(env):
     out = runner.invoke(app, ["compare", bad, "--baseline", good])
     assert out.exit_code == 0 and "worse" in out.output and "overall" in out.output and "P95 latency" in out.output
     same = runner.invoke(app, ["compare", good, "--baseline", good])
-    assert "no real change" in same.output
+    assert "cannot tell" in same.output     # 60 identical cases cannot prove "no change": an unseen difference of a few points is still possible.
 
 
 def test_compare_slices_and_bad_references(env):
@@ -58,7 +58,7 @@ release_policy:
   critical_failures_allowed: 0
   overall:
     minimum_score: 0.8
-    maximum_regression: 0.05
+    maximum_regression: 0.1
 """)
     good, bad = make_run(60), make_run(30)
     base = runner.invoke(app, ["baseline", "set", "main", good])

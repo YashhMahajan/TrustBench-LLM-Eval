@@ -4,7 +4,7 @@ import math
 
 from ..calibration import auroc, brier_score, expected_calibration_error
 from ..stats import (
-    benjamini_hochberg, chi2_sf, fisher_exact_less, ks_two_sample, mcnemar_exact, paired_bootstrap, psi, wilson_interval,
+    benjamini_hochberg, chi2_sf, fisher_exact_less, ks_two_sample, mcnemar_exact, paired_binary_ci, psi, wilson_interval,
 )
 from . import Ctx, check
 
@@ -27,23 +27,35 @@ def wilson_coverage(ctx: Ctx):
     return 0.93 <= mean <= 0.985, f"mean {mean:.1%}", f"lowest {worst[0]:.1%} at {worst[1]}"
 
 
-@check("statistics", "Paired interval covers the true change", "coverage 90% to 99%")
+@check("statistics", "Paired interval covers the true change, also at the extremes", "mean coverage 92% to 99% over 3 settings, none below 88%")
 def paired_coverage(ctx: Ctx):
-    rng, trials = ctx.rng("paired"), ctx.n(120)
-    p_base, p_fix, p_break = 0.7, 0.2, 0.05
-    truth = (1 - p_base) * p_fix - p_base * p_break
-    hit = 0
-    for t in range(trials):
-        a, b = [], []
-        for _ in range(150):
-            x = rng.random() < p_base
-            y = (x and rng.random() >= p_break) or (not x and rng.random() < p_fix)
-            a.append(float(x))
-            b.append(float(y))
-        _, lo, hi = paired_bootstrap(a, b, n_boot=300, seed=t)
-        hit += lo <= truth <= hi
-    c = hit / trials
-    return 0.90 <= c <= 0.99, f"{c:.1%} of {trials} trials", f"true change {truth:+.3f}"
+    rng, trials = ctx.rng("paired"), ctx.n(500)
+    # (share of cases the baseline passes, chance a failed case is fixed, chance a passed case breaks, number of cases)
+    settings = [(0.7, 0.2, 0.05, 150), (0.9, 0.0, 0.9, 30), (0.5, 0.1, 0.1, 60)]
+    covers = []
+    for p_base, p_fix, p_break, n in settings:
+        truth = (1 - p_base) * p_fix - p_base * p_break
+        hit = 0
+        for _ in range(trials):
+            a, b = [], []
+            for _ in range(n):
+                x = rng.random() < p_base
+                y = (x and rng.random() >= p_break) or (not x and rng.random() < p_fix)
+                a.append(float(x))
+                b.append(float(y))
+            lo, hi = paired_binary_ci(a, b)
+            hit += lo <= truth <= hi
+        covers.append(hit / trials)
+    return 0.92 <= sum(covers) / 3 <= 0.99 and min(covers) >= 0.88, "coverage " + ", ".join(f"{c:.1%}" for c in covers), "the second setting is extreme: 90% of the passed cases break"
+
+
+@check("statistics", "Paired interval does not claim certainty from a few cases", "all 8 of 8 cases break: the interval must still be wide")
+def paired_small_samples(ctx: Ctx):
+    lo8, hi8 = paired_binary_ci([1.0] * 8, [0.0] * 8)
+    lo20, hi20 = paired_binary_ci([1.0] * 20, [0.0] * 20)
+    lo0, hi0 = paired_binary_ci([1.0] * 60, [1.0] * 60)
+    ok = hi8 - lo8 >= 0.4 and hi8 > -0.9 and hi20 - lo20 >= 0.2 and lo0 < -0.02 and hi0 > 0.02
+    return ok, f"8 of 8 break: {lo8:+.2f} to {hi8:+.2f}; 20 of 20: {lo20:+.2f} to {hi20:+.2f}; 60 identical cases: {lo0:+.2f} to {hi0:+.2f}", "a plain bootstrap gives zero width here, which would be false certainty"
 
 
 @check("statistics", "McNemar test: two equal systems are rarely called different", "false alarm rate at most 6%")

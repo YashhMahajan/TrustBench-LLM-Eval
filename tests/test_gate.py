@@ -102,7 +102,8 @@ def test_regression_fail_pass_and_inconclusive():
     base = run([1] * 90 + [0] * 10)
     p = policy(overall=Rule(maximum_regression=0.02))
     assert decide(p, run([1] * 60 + [0] * 40), base).status == "fail"
-    assert decide(p, run([1] * 90 + [0] * 10), base).status == "pass"   # Identical results: no change at all.
+    # 100 identical cases show no change, but they cannot prove that a fall of 2 points is impossible. The gate says so.
+    assert decide(p, run([1] * 90 + [0] * 10), base).status == "inconclusive"
     big = run([1] * 900 + [0] * 100)
     assert decide(p, run([1] * 900 + [0] * 100), big).status == "pass"
     small = decide(p, run([1] * 45 + [0] * 5), run([1] * 46 + [0] * 4))   # One case worse. Cannot tell.
