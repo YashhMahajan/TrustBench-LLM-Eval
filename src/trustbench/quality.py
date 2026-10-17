@@ -32,14 +32,20 @@ def _expected_key(case: CaseSpec) -> str:
     return json.dumps(case.expected, sort_keys=True)
 
 
+def _family(case: CaseSpec) -> str:
+    """A variant belongs to the family of its source case. Family members are meant to look alike."""
+    return case.metadata.get("source_case") or case.id
+
+
 def check_duplicates_and_conflicts(cases: list[CaseSpec]) -> list[Issue]:
     issues: list[Issue] = []
+    family = {c.id: _family(c) for c in cases}
     groups: dict[str, list[CaseSpec]] = defaultdict(list)
     for c in cases:
         groups[" ".join(_words(c))].append(c)
     exact_pairs = set()
     for group in groups.values():
-        if len(group) < 2:
+        if len(group) < 2 or len({family[c.id] for c in group}) == 1:
             continue
         ids = [c.id for c in group]
         exact_pairs.update((a, b) for a in ids for b in ids if a < b)
@@ -64,7 +70,7 @@ def check_duplicates_and_conflicts(cases: list[CaseSpec]) -> list[Issue]:
                     shared[other] += 1
         for other, n in shared.items():
             pair = (cid, other)
-            if pair in exact_pairs or pair in seen:
+            if pair in exact_pairs or pair in seen or family[cid] == family[other]:
                 continue
             jac = n / (len(s) + len(sh[other]) - n)
             if jac >= NEAR_DUPLICATE:

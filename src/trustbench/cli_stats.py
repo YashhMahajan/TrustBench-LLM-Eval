@@ -225,3 +225,107 @@ def report(
             console.print(f"[yellow]{m['needs_human_review']} result(s) need a person to check them. Use 'trustbench show'.[/yellow]")
         if "calibration" in m:
             console.print(f"Calibration: run 'trustbench calibration {data['run_id']}' for details.")
+
+
+robust_app = typer.Typer(help="Test if the model stays stable when the input changes.", no_args_is_help=True)
+app.add_typer(robust_app, name="robustness")
+
+
+@robust_app.command("build")
+def robustness_build(
+    dataset: str = typer.Argument(..., help="Built-in suite name or dataset file"),
+    transforms: str = typer.Option("whitespace,formatting,typos,reorder_context,evidence_first,evidence_last,evidence_buried",
+                                   help="Comma-separated list. See 'trustbench robustness list'."),
+    paraphrase_judge: str = typer.Option(None, "--paraphrase-judge", help="provider:model that writes paraphrases"),
+    seed: int = typer.Option(0),
+    out: Path = typer.Option(None, help="File to write. Default: NAME_robust.jsonl"),
+):
+    """Write a new dataset file: the original cases plus changed copies that must give the same result."""
+    import asyncio
+    import json
+
+    from .datasets import DatasetError, load_cases, resolve_path
+    from .engine import make_judge
+    from .paraphrase import build_paraphrases
+    from .providers import get_provider
+    from .transforms import build_variants
+
+    try:
+        path = resolve_path(dataset)
+        cases = [c for c in load_cases(path) if not c.metadata.get("source_case")]
+        names = [n.strip() for n in transforms.split(",") if n.strip()]
+        variants, rep = build_variants(cases, names, seed)
+        para = None
+        if paraphrase_judge:
+            para, prep = asyncio.run(build_paraphrases(make_judge(paraphrase_judge, get_provider), cases))
+            variants += para
+    except (DatasetError, ValueError) as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    out = out or Path(f"{path.stem}_robust.jsonl")
+    with out.open("w") as f:
+        for c in [*cases, *variants]:
+            f.write(json.dumps(c.model_dump(), ensure_ascii=False) + "\n")
+    t = Table(title=f"{len(cases)} original cases, {len(variants)} variants")
+    for col in ["Transform", "Made", "Not applicable", "Dropped (unfair)"]:
+        t.add_column(col)
+    for n in names:
+        t.add_row(n, str(rep.applied[n]), str(rep.not_applicable[n]), str(rep.rejected[n]))
+    if para is not None:
+        t.add_row("paraphrase", str(prep.applied), "-", str(sum(prep.rejected.values())))
+    console.print(t)
+    console.print(f"Wrote {out}. Run it with: trustbench run --dataset {out}")
+
+
+@robust_app.command("list")
+def robustness_list():
+    """Show the available transforms."""
+    from .transforms import TRANSFORMS
+    for t in TRANSFORMS.values():
+        console.print(f"[bold]{t.name}[/bold]  {t.description}")
+    console.print("[bold]paraphrase[/bold]  A rewrite by a model. Use --paraphrase-judge.")
+
+
+@robust_app.command("report")
+def robustness_report_cmd(run_id: str, model: str = typer.Option(None)):
+    """Compare the results on original cases and on their changed copies."""
+    from .robustness import robustness_report
+
+    try:
+        r = robustness_report(load_run(get_factory(), run_id).for_model(model))
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    if r.pairs == 0:
+        console.print(f"[red]{r.warnings[0]}[/red]")
+        raise typer.Exit(1)
+
+    def rate(x):
+        return "-" if x.value is None else f"{x.value:.1%} ({x.ci[0]:.1%} to {x.ci[1]:.1%}), {x.k} of {x.n}"
+
+    t = Table(title=f"Robustness, {r.pairs} pairs of original and changed case")
+    t.add_column("Measure")
+    t.add_column("Value")
+    t.add_row("Pass rate: originals", f"{r.original_rate:.1%}")
+    t.add_row("Pass rate: changed copies", f"{r.variant_rate:.1%}")
+    t.add_row("Degradation (original minus copy)", f"{r.degradation:+.1%} (95% interval {r.degradation_ci[0]:+.1%} to {r.degradation_ci[1]:+.1%})")
+    t.add_row("Break rate (passed original, failed copy)", rate(r.break_rate))
+    t.add_row("Fix rate (failed original, passed copy)", rate(r.fix_rate))
+    t.add_row("Consistency (same result for both)", rate(r.consistency))
+    t.add_row("Consistently wrong (failed both)", rate(r.consistently_wrong))
+    console.print(t)
+    g = Table(title="By transform")
+    for col in ["Transform", "Pairs", "Original", "Copy", "Break rate"]:
+        g.add_column(col)
+    for x in r.by_transform:
+        g.add_row(x.name, str(x.pairs), f"{x.original_rate:.0%}", f"{x.variant_rate:.0%}",
+                  "-" if x.break_rate.value is None else f"{x.break_rate.value:.0%} ({x.break_rate.k}/{x.break_rate.n})")
+    console.print(g)
+    if r.worst_transform:
+        console.print(f"Weakest transform: [bold]{r.worst_transform.name}[/bold] ({r.worst_transform.variant_rate:.0%} pass).")
+    if r.worst_task:
+        console.print(f"Weakest task: [bold]{r.worst_task.name}[/bold] ({r.worst_task.variant_rate:.0%} pass).")
+    if r.fragile_cases:
+        console.print("Cases that broke: " + "; ".join(f"{c} ({', '.join(ts)})" for c, ts in list(r.fragile_cases.items())[:10]))
+    for w in r.warnings:
+        console.print(f"[yellow]{w}[/yellow]")
