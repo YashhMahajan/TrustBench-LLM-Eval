@@ -78,3 +78,10 @@ def test_a_custom_embedder_can_replace_the_default():
             return [{"x": 1.0} if "math" in t else {"y": 1.0} for t in texts]
     clusters, _ = cluster_failures(MATH + DATES, 20, embedder=ByTask(), threshold=0.5)
     assert sorted(c.size for c in clusters) == [4, 4]
+
+
+def test_failure_type_counts_in_the_text_that_is_clustered():
+    from trustbench.clustering import failure_text
+    f = fail("a", "q", labels=("wrong_answer", "format_violation"))
+    words = failure_text(f).split()
+    assert words.count("wrong_answer") == 3 and words.count("format_violation") == 3   # The labels are repeated as separate words.

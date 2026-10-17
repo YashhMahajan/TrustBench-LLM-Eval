@@ -450,3 +450,55 @@ def proposals_export(dataset: str, out: Path = typer.Option(None, help="File to 
         console.print(f"[red]{e}[/red]")
         raise typer.Exit(1)
     console.print(f"Wrote {out} with {n} approved case(s) (dataset version {version}). Run it with: trustbench run --dataset {out}")
+
+
+@app.command()
+def failures(
+    run_id: str,
+    model: str = typer.Option(None, help="Model to analyze, if the run has several"),
+    as_json: bool = typer.Option(False, "--json"),
+):
+    """Why did cases fail? Labels, recurring patterns, retrieval stage and what to fix first."""
+    import json
+
+    from .failure_report import analyze_failures
+
+    try:
+        data = analyze_failures(load_run(get_factory(), run_id).for_model(model))
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    if as_json:
+        typer.echo(json.dumps(data, indent=2, default=str))
+        return
+    if not data["failed_cases"]:
+        console.print(f"No case failed ({data['cases_with_a_result']} cases with a result).")
+        return
+    console.print(f"{data['failed_cases']} of {data['cases_with_a_result']} cases failed.")
+    t = Table(title="How the cases failed (a case can have several labels)")
+    for col in ["Label", "Cases", "Share", "Meaning"]:
+        t.add_column(col)
+    for row in data["labels"]:
+        t.add_row(row["label"], str(row["cases"]), f"{row['share']:.0%}", row["meaning"])
+    console.print(t)
+    if data["clusters"]:
+        c = Table(title="Recurring patterns")
+        for col in ["#", "Cases", "Share", "Words", "Tasks", "Cohesion", "Examples"]:
+            c.add_column(col)
+        for x in data["clusters"]:
+            c.add_row(str(x["id"]), str(x["size"]), f"{x['share']:.0%}", ", ".join(x["terms"]) or "-",
+                      ", ".join(x["tasks"]), f"{x['cohesion']:.2f}", ", ".join(x["examples"]))
+        console.print(c)
+        console.print("[dim]Patterns show what failures have in common. They do not prove the cause.[/dim]")
+    if data["rag_stages"]:
+        console.print("Retrieval stage of the failures: " + ", ".join(f"{k} {v}" for k, v in data["rag_stages"].items()))
+    p = Table(title="What to fix first")
+    for col in ["Failure type", "Cases", "Severity", "Frequency", "Exposure", "Detectability", "Score"]:
+        p.add_column(col)
+    for i in data["priority"]:
+        p.add_row(i["name"], str(i["cases"]), f"{i['severity']} (x{i['weight']})", f"{i['frequency_pct']:.1f}%",
+                  f"{i['exposure']:.1f}", f"{i['detectability']:.1f}", f"{i['score']:.1f}")
+    console.print(p)
+    console.print("[dim]Score = severity weight x frequency (%) x exposure x detectability.[/dim]")
+    if data["needs_review"]:
+        console.print(f"[yellow]{len(data['needs_review'])} failure(s) need a person to check them: {', '.join(data['needs_review'][:8])}[/yellow]")

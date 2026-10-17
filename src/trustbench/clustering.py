@@ -64,7 +64,7 @@ def _centroid(vectors: list[Vector]) -> Vector:
 def failure_text(f: Failure) -> str:
     """What the clustering reads: the labels (repeated, so they count more), the task, the question and the answer."""
     question = render_prompt(f.record.input) if f.record and f.record.input else ""
-    return " ".join([" ".join(f.labels) * 3, f.task, question[:400], (f.output or "")[:200]])
+    return " ".join([" ".join(f.labels * 3), f.task, question[:400], (f.output or "")[:200]])
 
 
 def cluster_vectors(vectors: list[Vector], threshold: float = 0.3, max_rounds: int = 5) -> list[list[int]]:
@@ -141,7 +141,7 @@ def cluster_failures(failures: list[Failure], total_cases: int, embedder: Embedd
             id=len(clusters) + 1, size=len(g), share_of_cases=len(g) / total_cases if total_cases else 0.0,
             top_terms=terms, labels=dict(Counter(l for m in members for l in m.labels)),
             tasks=dict(Counter(m.task for m in members)), models=dict(Counter(m.model for m in members)),
-            cohesion=sum(sims.values()) / len(g),
+            cohesion=min(1.0, sum(sims.values()) / len(g)),
             representatives=[failures[i] for i in sorted(g, key=lambda i: -sims[i])[:3]], members=members,
             follow_up=f"Add more test cases about: {', '.join(terms[:3]) or 'this pattern'} (failure type: {top_label})."))
     return clusters, loose
