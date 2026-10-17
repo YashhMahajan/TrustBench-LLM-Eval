@@ -65,3 +65,42 @@ def test_repetition_scores_use_the_permutation_path():
     recs = [Record(case_id=f"a{i}", repetition=r, task="a", passed=r == 0) for i in range(30) for r in range(2)]
     recs += [Record(case_id=f"b{i}", repetition=r, task="b", passed=True) for i in range(30) for r in range(2)]
     assert [s.value for s in find_slices(recs) if s.weak] == ["a"]
+
+
+def test_regression_scan_finds_the_slice_that_got_worse():
+    from trustbench.slices import regression_scan
+    base = make(50, {"math": 0.9, "qa": 0.9, "chat": 0.9})
+    cand = [Record(case_id=r.case_id, task=r.task, metadata=r.metadata, input_words=r.input_words,
+                   passed=(r.passed and (r.task != "math" or r.case_id[-1] not in "02468"))) for r in base]
+    hits = [s for s in regression_scan(base, cand) if s.regression]
+    assert hits and (hits[0].dimension, hits[0].value) == ("task", "math")
+    assert hits[0].diff < -0.3 and hits[0].n == 50 and hits[0].p_value < 0.01
+
+
+def test_regression_scan_ignores_improvements_and_noise():
+    from trustbench.slices import regression_scan
+    base = make(50, {"a": 0.5, "b": 0.5})
+    better = [Record(case_id=r.case_id, task=r.task, metadata=r.metadata, input_words=r.input_words,
+                     passed=True) for r in base]
+    assert not any(s.regression for s in regression_scan(base, better))
+    assert not any(s.regression for s in regression_scan(base, base))
+
+
+def test_regression_scan_noise_is_controlled():
+    from trustbench.slices import regression_scan
+    flagged = 0
+    for seed in range(15):
+        base = make(40, {f"t{i}": 0.8 for i in range(8)}, seed)
+        cand = make(40, {f"t{i}": 0.8 for i in range(8)}, seed + 100)   # Same skill, different luck.
+        flagged += any(s.regression for s in regression_scan(base, cand))
+    assert flagged <= 3
+
+
+def test_regression_scan_skips_small_slices_and_unpaired_cases():
+    from trustbench.slices import regression_scan
+    base = [Record(case_id=f"t{i}", task="tiny", passed=True) for i in range(3)] + make(30, {"big": 0.9})
+    cand = [Record(case_id=f"t{i}", task="tiny", passed=False) for i in range(3)] + make(30, {"big": 0.9})[:20]
+    scan = regression_scan(base, cand)
+    tiny = next(s for s in scan if s.value == "tiny")
+    assert tiny.underpowered and tiny.p_value is None and not tiny.regression
+    assert next(s for s in scan if s.value == "big").n == 20
