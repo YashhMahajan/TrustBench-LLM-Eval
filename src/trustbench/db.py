@@ -138,6 +138,21 @@ class EvaluationResult(Base):
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
 
 
+class HumanAnnotation(Base):
+    """A label from a person. We compare it with the judge to see if the judge is reliable."""
+
+    __tablename__ = "human_annotations"
+    __table_args__ = (UniqueConstraint("response_id", "annotator", "dimension"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    response_id: Mapped[int] = mapped_column(ForeignKey("model_responses.id"), index=True)
+    annotator: Mapped[str] = mapped_column(String(100))
+    dimension: Mapped[str] = mapped_column(String(100))
+    label: Mapped[float] = mapped_column(Float)
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
+
+
 def make_engine(url: str) -> Engine:
     if url.startswith("sqlite") and (":memory:" in url or url.endswith("//")):
         return create_engine(

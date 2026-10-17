@@ -2,7 +2,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from . import quality, report
+from pathlib import Path
+
+from . import annotations, quality, report
 from .config import database_url, detect_models
 from .datasets import DatasetError, import_dataset, load_cases, resolve_path
 from .db import init_db, make_engine
@@ -134,3 +136,29 @@ def check(dataset: str):
     console.print(t)
     if any(i.severity == "error" for i in issues):
         raise typer.Exit(1)
+
+
+notes = typer.Typer(help="Human labels for answers. Used to check the judge.", no_args_is_help=True)
+app.add_typer(notes, name="annotations")
+
+
+@notes.command("export")
+def annotations_export(run_id: str, out: Path = typer.Option(Path("annotations.csv"), help="CSV file to write")):
+    """Write a CSV with every answer. Fill in the label column, then import it."""
+    count = annotations.export_template(_factory(), run_id, out)
+    console.print(f"Wrote {count} answers to {out}. Fill in the 'label' column.")
+
+
+@notes.command("import")
+def annotations_import(
+    file: Path,
+    annotator: str = typer.Option(..., help="Who labelled the answers"),
+    dimension: str = typer.Option("correctness", help="What the label measures"),
+):
+    """Store the labels from a CSV."""
+    try:
+        stored, skipped = annotations.import_annotations(_factory(), file, annotator, dimension)
+    except annotations.AnnotationError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    console.print(f"Stored {stored} label(s). Skipped {skipped} empty row(s).")
