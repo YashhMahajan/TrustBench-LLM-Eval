@@ -65,15 +65,16 @@ def workspace_set(
 
 @key_app.command("create")
 def key_create(workspace: str = typer.Option(..., help="Workspace name"), name: str = typer.Option("key", help="A label"),
-               role: str = typer.Option("write", help="read, write or admin")):
+               role: str = typer.Option("write", help="read, write or admin"),
+               expires_days: float = typer.Option(None, "--expires-days", help="The key stops working after this many days")):
     """Make an API key. It is shown once. Copy it now."""
     factory = get_factory()
     try:
         ws = tenancy.get_workspace(factory, workspace)
-        row, token = tenancy.create_api_key(factory, ws.id, name, role)
+        row, token = tenancy.create_api_key(factory, ws.id, name, role, expires_days)
     except tenancy.TenancyError as e:
         _fail(e)
-    console.print(f"Key {row.id} ({role}) for workspace '{ws.name}':\n\n  {token}\n")
+    console.print(f"Key {row.id} ({role}) for workspace '{ws.name}'" + (f", valid until {row.expires_at:%Y-%m-%d}" if row.expires_at else ", with no end date") + f":\n\n  {token}\n")
     console.print("[yellow]This is the only time you can see the key. We store only a hash.[/yellow]")
 
 
@@ -85,11 +86,12 @@ def key_list(workspace: str = typer.Option(None)):
     except tenancy.TenancyError as e:
         _fail(e)
     t = Table()
-    for col in ["Id", "Workspace", "Label", "Role", "Starts with", "Last used", "State"]:
+    for col in ["Id", "Workspace", "Label", "Role", "Starts with", "Last used", "Expires", "State"]:
         t.add_column(col)
     for k in tenancy.list_api_keys(factory, ws_id):
         t.add_row(str(k.id), k.workspace_id, k.name, k.role, k.prefix, k.last_used_at.strftime("%Y-%m-%d %H:%M") if k.last_used_at else "never",
-                  "revoked" if k.revoked_at else "active")
+                  k.expires_at.strftime("%Y-%m-%d") if k.expires_at else "never",
+                  "revoked" if k.revoked_at else "expired" if k.expires_at and k.expires_at <= tenancy.utcnow() else "active")
     console.print(t)
 
 

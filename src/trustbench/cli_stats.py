@@ -552,3 +552,28 @@ def frontier(
             console.print(f"Highest quality within the limits: [bold]{best.name}[/bold].")
             if priced:
                 console.print(f"Cheapest within the limits: [bold]{min(priced, key=lambda c: c.cost_per_success).name}[/bold].")
+
+
+@app.command("export")
+def export_report(
+    run_id: str,
+    out: Path = typer.Option(None, help="File to write. Default: trustbench-run-RUN_ID.md (or .json)"),
+    fmt: str = typer.Option("md", "--format", help="md or json"),
+    model: str = typer.Option(None, help="One model only, if the run has several"),
+):
+    """Write a report of a run that you can send to someone: numbers with intervals, failures, decisions, how to repeat it."""
+    import json
+
+    from .report_export import build_report, to_markdown
+
+    if fmt not in ("md", "json"):
+        console.print("[red]--format must be md or json.[/red]")
+        raise typer.Exit(1)
+    try:
+        data = build_report(get_factory(), run_id, model)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    path = out or Path(f"trustbench-run-{run_id}.{fmt}")
+    path.write_text(to_markdown(data) if fmt == "md" else json.dumps(data, indent=2, default=str))
+    console.print(f"Wrote {path}")

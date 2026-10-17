@@ -102,6 +102,21 @@ def register(app: FastAPI, need, db) -> None:
                     config=run.config_snapshot, cost_usd=run.total_cost_usd)
         return _plain(data)
 
+    @app.get("/v1/runs/{run_id}/report")
+    def run_report(run_id: str, p: Principal = Depends(need("read")), f: sessionmaker = Depends(db), model: str | None = None,
+                   format: str = Query("md", pattern="^(md|json)$")):
+        own_run(f, p, run_id)
+        from fastapi.responses import PlainTextResponse
+        from .report_export import build_report, to_markdown
+        try:
+            data = build_report(f, run_id, model)
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+        if format == "json":
+            return data
+        return PlainTextResponse(to_markdown(data), media_type="text/markdown",
+                                 headers={"Content-Disposition": f'attachment; filename="trustbench-run-{run_id}.md"'})
+
     @app.get("/v1/runs/{run_id}/cases")
     def run_cases(run_id: str, p: Principal = Depends(need("read")), f: sessionmaker = Depends(db), model: str | None = None,
                   result: str | None = Query(None, pattern="^(pass|fail|error)$"), task: str | None = None, q: str | None = None,

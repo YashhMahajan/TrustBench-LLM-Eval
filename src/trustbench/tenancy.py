@@ -75,15 +75,18 @@ def list_workspaces(factory: sessionmaker) -> list[Workspace]:
         return list(s.scalars(select(Workspace).order_by(Workspace.name)))
 
 
-def create_api_key(factory: sessionmaker, workspace_id: str, name: str, role: str = "write") -> tuple[ApiKey, str]:
+def create_api_key(factory: sessionmaker, workspace_id: str, name: str, role: str = "write", expires_in_days: float | None = None) -> tuple[ApiKey, str]:
     """Returns the stored row and the key. The key cannot be read again, so show it now."""
     if role not in ROLES:
         raise TenancyError(f"Role must be one of: {', '.join(ROLES)}.")
+    if expires_in_days is not None and expires_in_days <= 0:
+        raise TenancyError("A key must expire in the future: use a number of days above zero.")
     token = KEY_PREFIX + secrets.token_urlsafe(32)
     with factory.begin() as s:
         if s.get(Workspace, workspace_id) is None:
             raise TenancyError(f"No workspace '{workspace_id}'.")
-        row = ApiKey(workspace_id=workspace_id, name=name, prefix=token[:11], key_hash=_hash(token), role=role)
+        expires = utcnow() + dt.timedelta(days=expires_in_days) if expires_in_days else None
+        row = ApiKey(workspace_id=workspace_id, name=name, prefix=token[:11], key_hash=_hash(token), role=role, expires_at=expires)
         s.add(row)
         s.flush()
         return row, token
@@ -98,6 +101,8 @@ def authenticate(factory: sessionmaker, token: str | None) -> Principal | None:
         for row in s.scalars(select(ApiKey).where(ApiKey.prefix == token[:11], ApiKey.revoked_at.is_(None))):
             if hmac.compare_digest(row.key_hash, candidate):
                 now = utcnow()
+                if row.expires_at is not None and row.expires_at <= now:
+                    return None          # An expired key gets the same answer as a wrong key.
                 if row.last_used_at is None or (now - row.last_used_at) > dt.timedelta(minutes=1):
                     row.last_used_at = now
                 return Principal(row.workspace_id, row.id, row.role)

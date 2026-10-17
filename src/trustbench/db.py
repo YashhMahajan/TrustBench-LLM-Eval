@@ -235,6 +235,7 @@ class ApiKey(Base):
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
     last_used_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)
     revoked_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)
+    expires_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)     # After this time the key stops working.
 
 
 class ProductionTrace(Base):

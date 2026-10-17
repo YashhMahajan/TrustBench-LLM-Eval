@@ -73,7 +73,7 @@ def test_commands_report_and_repair(tmp_path, monkeypatch):
     assert "created" in runner.invoke(app, ["db", "upgrade"]).output
     assert "already up to date" in runner.invoke(app, ["db", "upgrade"]).output
     status = runner.invoke(app, ["db", "status"]).output
-    assert "0001" in status and "Up to date" in status
+    assert migrate.head_revision() in status and "Up to date" in status
     assert runner.invoke(app, ["db", "check"]).exit_code == 0
     con = sqlite3.connect(f"{tmp_path}/c.db")
     con.execute("ALTER TABLE jobs DROP COLUMN last_error")

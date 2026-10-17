@@ -17,6 +17,7 @@ from .cli_common import get_factory
 from .crypto import DecryptionError, SecretKeyMissing
 from .dataprotect import PolicyProblem, DataPolicy, policy_of, update_policy
 from .db import Workspace
+from .ratelimit import RateLimiter
 from .tenancy import Principal, authenticate
 
 MAX_BODY_BYTES = 5 * 1024 * 1024
@@ -39,9 +40,15 @@ def trace_json(row, spans=None) -> dict:
     return d
 
 
-def create_app(factory: sessionmaker | None = None) -> FastAPI:
+def create_app(factory: sessionmaker | None = None, rate_limit: int | None = None, bad_key_limit: int = 30, clock=None) -> FastAPI:
+    """rate_limit: requests for each key each minute. Default from TRUSTBENCH_RATE_LIMIT, or 600. 0 turns it off.
+    bad_key_limit: wrong keys from one address each minute before that address is locked for a while."""
+    import os
     app = FastAPI(title="TrustBench", version=__version__, docs_url="/docs", redoc_url=None)
     app.state.factory = factory
+    limit = rate_limit if rate_limit is not None else int(os.environ.get("TRUSTBENCH_RATE_LIMIT", "600"))
+    extra = {"clock": clock} if clock else {}
+    limiter, bad_keys = RateLimiter(limit, **extra), RateLimiter(bad_key_limit, **extra)
 
     def db() -> sessionmaker:
         if app.state.factory is None:
@@ -51,9 +58,17 @@ def create_app(factory: sessionmaker | None = None) -> FastAPI:
     def principal(request: Request, f: sessionmaker = Depends(db)) -> Principal:
         header = request.headers.get("authorization", "")
         token = header[7:].strip() if header.lower().startswith("bearer ") else request.headers.get("x-api-key")
+        ip = request.client.host if request.client else "unknown"
+        wait = bad_keys.blocked(ip)
+        if wait:
+            raise HTTPException(429, "Too many wrong keys from this address. Try again later.", headers={"Retry-After": str(int(wait) + 1)})
         p = authenticate(f, token)
-        if p is None:     # The same answer for a missing, wrong or revoked key.
+        if p is None:     # The same answer for a missing, wrong, revoked or expired key.
+            bad_keys.record(ip)
             raise HTTPException(401, "A valid API key is needed.", headers={"WWW-Authenticate": "Bearer"})
+        allowed, retry = limiter.hit(f"key:{p.key_id}")
+        if not allowed:
+            raise HTTPException(429, f"This key sent too many requests. Limit: {limit} each minute.", headers={"Retry-After": str(int(retry) + 1)})
         return p
 
     def need(role: str):
