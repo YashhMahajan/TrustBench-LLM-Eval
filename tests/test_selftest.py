@@ -194,3 +194,13 @@ def test_a_queue_that_forgets_dead_workers_is_noticed(monkeypatch):
             return Job(str(row.id), row.kind, row.payload, row.workspace_id, row.attempts, row.max_attempts)
     monkeypatch.setattr(DbQueue, "claim", claim_new_only)
     assert "No task is lost when a worker dies" in failed_names(["privacy"])
+
+
+def test_a_model_change_without_a_migration_is_noticed():
+    from sqlalchemy import Column, Integer
+    from trustbench.db import Base
+    Base.metadata.tables["jobs"].append_column(Column("forgotten", Integer, nullable=True))
+    try:
+        assert "The migrations build exactly the schema of the models" in failed_names(["invariants"])
+    finally:
+        Base.metadata.tables["jobs"]._columns.remove(Base.metadata.tables["jobs"].c.forgotten)

@@ -420,3 +420,15 @@ def tasks_survive(ctx: Ctx):
     run_worker(q, {"a": lambda p, j: done.append(p["n"])}, concurrency=1, idle_exit=True, poll_interval=0.01)
     c = q.counts()
     return c["done"] == 30 and c["dead"] == 0 and set(done) == set(range(30)), f"{c['done']} of 30 finished, {c['dead']} dead", f"{len(done)} runs for 30 tasks: 10 tasks ran again after their worker died"
+
+
+@check("invariants", "The migrations build exactly the schema of the models", "the database made by the migrations has no difference from the models")
+def schema_matches(ctx: Ctx):
+    import tempfile, os
+    from .. import migrate
+    with tempfile.TemporaryDirectory() as d:
+        engine = make_engine(f"sqlite:///{os.path.join(d, 's.db')}")
+        what = migrate.ensure_schema(engine)
+        diffs = migrate.describe(migrate.differences(engine))
+        engine.dispose()
+    return what == "created" and not diffs, f"{what}, {len(diffs)} differences", "; ".join(diffs[:4]) or "a change to a model needs a new migration"

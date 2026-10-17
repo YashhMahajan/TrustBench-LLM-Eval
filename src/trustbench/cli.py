@@ -282,4 +282,4 @@ def calibration(run_id: str, model: str = typer.Option(None, help="provider:mode
         console.print(f"[yellow]{w}[/yellow]")
 
 
-from . import cli_stats, cli_server, cli_selftest  # noqa: E402,F401  (add compare, gate, baseline, policy, workspace, key and serve commands)
+from . import cli_stats, cli_server, cli_selftest, cli_db  # noqa: E402,F401  (add compare, gate, baseline, policy, workspace, key and serve commands)
