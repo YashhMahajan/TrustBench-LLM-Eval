@@ -107,4 +107,4 @@ async def evaluate(evaluation: dict, inp: dict, expected: dict, output: str, jud
 
 
 # These imports register more evaluators. They must stay at the end of the file.
-from . import eval_schema  # noqa: E402,F401
+from . import eval_numeric, eval_schema  # noqa: E402,F401
