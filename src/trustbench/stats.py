@@ -172,7 +172,7 @@ def normal_cdf(x: float) -> float:
 
 
 def psi(reference: list[float], current: list[float], bins: int = 10) -> float | None:
-    """Population Stability Index for numbers. Bins come from the quantiles of the reference.
+    """Population Stability Index for numbers, corrected for small samples. Bins come from the quantiles of the reference.
 
     Below 0.1: no real change. 0.1 to 0.25: some change. Above 0.25: a large change.
     """
@@ -184,7 +184,9 @@ def psi(reference: list[float], current: list[float], bins: int = 10) -> float |
         for x in xs:
             counts[sum(x > e for e in edges)] += 1
         return [max(c / len(xs), 1e-4) for c in counts]
-    return psi_from_shares(shares(reference), shares(current))
+    # With few data, PSI is above zero even when nothing changed: about (bins - 1) * (1/n1 + 1/n2). We subtract that.
+    correction = len(edges) * (1 / len(reference) + 1 / len(current))
+    return max(0.0, psi_from_shares(shares(reference), shares(current)) - correction)
 
 
 def psi_from_shares(ref: list[float], cur: list[float]) -> float:
@@ -196,7 +198,8 @@ def psi_categorical(reference: list, current: list) -> float | None:
         return None
     cats = sorted(set(reference) | set(current), key=str)
     share = lambda xs, c: max(sum(x == c for x in xs) / len(xs), 1e-4)
-    return psi_from_shares([share(reference, c) for c in cats], [share(current, c) for c in cats])
+    raw = psi_from_shares([share(reference, c) for c in cats], [share(current, c) for c in cats])
+    return max(0.0, raw - (len(cats) - 1) * (1 / len(reference) + 1 / len(current)))
 
 
 def ks_two_sample(a: list[float], b: list[float]) -> tuple[float, float] | None:
