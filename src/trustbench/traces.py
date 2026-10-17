@@ -241,3 +241,15 @@ def purge_expired(factory: sessionmaker, now: dt.datetime | None = None) -> int:
 def delete_trace(factory: sessionmaker, workspace_id: str, trace_id: str) -> bool:
     with factory.begin() as s:
         return bool(_delete_where(s, (ProductionTrace.workspace_id == workspace_id) & (ProductionTrace.trace_id == trace_id)))
+
+
+def set_feedback(factory: sessionmaker, workspace_id: str, trace_id: str, value: int) -> bool:
+    """Record the opinion of a user about a trace. Returns False if the trace does not exist."""
+    if value not in (-1, 0, 1):
+        raise ValueError("feedback must be -1, 0 or 1.")
+    with factory.begin() as s:
+        row = s.scalar(select(ProductionTrace).where(ProductionTrace.workspace_id == workspace_id, ProductionTrace.trace_id == trace_id))
+        if row is None:
+            return False
+        row.feedback = value
+        return True

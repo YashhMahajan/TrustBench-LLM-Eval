@@ -132,3 +132,16 @@ def test_listing_filters_and_limits(world):
     assert len(get("status=error").json()["traces"]) == 3 and len(get("limit=2").json()["traces"]) == 2
     assert get("status=weird").status_code == 422 and get("limit=0").status_code == 422
     assert len(get("model=m&offset=4").json()["traces"]) == 2
+
+
+def test_feedback_endpoint(world):
+    client, keys, *_ = world
+    post(client, keys["a_write"], [{"trace_id": "t1"}])
+    send = lambda token, tid, body: client.post(f"/v1/traces/{tid}/feedback", json=body, headers=h(token))
+    assert send(keys["a_write"], "t1", {"value": -1}).json() == {"trace_id": "t1", "feedback": -1}
+    assert client.get("/v1/traces/t1", headers=h(keys["a_read"])).json()["feedback"] == -1
+    assert send(keys["a_read"], "t1", {"value": 1}).status_code == 403
+    assert send(keys["a_write"], "nope", {"value": 1}).status_code == 404
+    assert send(keys["b_write"], "t1", {"value": 1}).status_code == 404            # Another workspace.
+    for bad in ({"value": 5}, {"value": "up"}, {}, {"other": 1}):
+        assert send(keys["a_write"], "t1", bad).status_code == 400

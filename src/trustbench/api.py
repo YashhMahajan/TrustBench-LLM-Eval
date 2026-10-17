@@ -124,6 +124,17 @@ def create_app(factory: sessionmaker | None = None) -> FastAPI:
             audit.record(f, p, "trace.reveal", trace_id)
         return out
 
+    @app.post("/v1/traces/{trace_id}/feedback")
+    async def post_feedback(trace_id: str, request: Request, p: Principal = Depends(need("write")), f: sessionmaker = Depends(db)):
+        try:
+            value = (await request.json())["value"]
+            ok = tr.set_feedback(f, p.workspace_id, trace_id, value)
+        except (ValueError, KeyError, TypeError):
+            raise HTTPException(400, 'The body must be {"value": -1}, {"value": 0} or {"value": 1}.')
+        if not ok:
+            raise HTTPException(404, "No such trace.")
+        return {"trace_id": trace_id, "feedback": value}
+
     @app.delete("/v1/traces/{trace_id}", status_code=204)
     def delete_one(trace_id: str, p: Principal = Depends(need("admin")), f: sessionmaker = Depends(db)):
         if not tr.delete_trace(f, p.workspace_id, trace_id):
