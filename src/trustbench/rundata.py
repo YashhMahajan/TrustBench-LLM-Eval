@@ -29,6 +29,10 @@ class Record:
     latency_ms: float | None = None
     cost_usd: float | None = None
     results: list = field(default_factory=list)
+    input: dict = field(default_factory=dict)
+    expected: dict = field(default_factory=dict)
+    output: str | None = None           # The last answer, or None if every call failed.
+    error: str | None = None            # The last error, when the final call failed.
 
     @property
     def critical(self) -> bool:
@@ -101,8 +105,10 @@ def load_run(factory: sessionmaker, run_id: str, batch: int | None = None) -> Ru
                 attempts=len(attempts), timed_out=any(a.error == "Timeout" for a in attempts),
                 latency_ms=last.latency_ms if last and last.ok else None,
                 cost_usd=last.cost_usd if last and last.ok else None,
-                results=[{"evaluator": r.evaluator, "passed": r.passed, "score": r.score, "details": r.details}
-                         for r in res])
+                input=case.input, expected=case.expected,
+                output=last.output if last and last.ok else None, error=last.error if last and not last.ok else None,
+                results=[{"evaluator": r.evaluator, "passed": r.passed, "score": r.score, "details": r.details,
+                          "rationale": r.rationale, "rubric_version": r.rubric_version} for r in res])
             if res:
                 rec.evaluator_error = any(r.details.get("error") for r in res)
                 rec.passed = None if rec.evaluator_error else all(r.passed for r in res)

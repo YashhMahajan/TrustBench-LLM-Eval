@@ -54,7 +54,7 @@ def test_editing_the_answer_marks_it_as_checked(pool):
     assert proposals.approve(pool, [pid]) == 1
 
 
-def test_rejected_cases_stay_out_and_are_not_proposed_again(pool):
+def test_rejected_cases_stay_out_and_are_not_proposed_again(pool, tmp_path):
     rid = stored(pool)[0].source_run_id
     pid = stored(pool)[0].id
     proposals.reject(pool, [pid], note="not useful")
@@ -62,7 +62,7 @@ def test_rejected_cases_stay_out_and_are_not_proposed_again(pool):
     asyncio.run(propose_from_failures(pool, rid, per_case=1))
     assert len(stored(pool)) == n and proposals.list_proposals(pool, "rejected")[0].note == "not useful"
     with pytest.raises(ReviewError, match="No approved"):
-        proposals.export_approved(pool, "adv", pool and __import__("pathlib").Path("/tmp/none.jsonl"))
+        proposals.export_approved(pool, "adv", tmp_path / "none.jsonl")
 
 
 def test_export_writes_base_plus_approved_and_versions_it(pool, tmp_path):
