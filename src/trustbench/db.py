@@ -300,6 +300,26 @@ class AuditLog(Base):
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
 
 
+class JobRow(Base):
+    """A task for a worker. The database is the default queue, so no other service is needed."""
+
+    __tablename__ = "jobs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(50), index=True)
+    payload: Mapped[dict] = mapped_column(Json, default=dict)
+    workspace_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    state: Mapped[str] = mapped_column(String(10), index=True, default="queued")   # queued | running | done | dead
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, default=3)
+    run_after: Mapped[dt.datetime] = mapped_column(default=utcnow, index=True)
+    lease_expires_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)
+    worker_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
+    finished_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)
+
+
 def make_engine(url: str) -> Engine:
     if url.startswith("sqlite") and (":memory:" in url or url.endswith("//")):
         return create_engine(

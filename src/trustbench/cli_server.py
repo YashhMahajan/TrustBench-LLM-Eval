@@ -121,3 +121,61 @@ def serve(host: str = typer.Option("127.0.0.1", help="Use 0.0.0.0 only behind a 
     if host not in ("127.0.0.1", "localhost", "::1"):
         console.print("[yellow]The server listens on a public address. API keys travel in headers, so put TLS in front of it.[/yellow]")
     uvicorn.run(create_app(factory), host=host, port=port, log_level="info")
+
+
+jobs_app = typer.Typer(help="The task queue.", no_args_is_help=True)
+app.add_typer(jobs_app, name="jobs")
+
+
+@app.command()
+def worker(
+    concurrency: int = typer.Option(2, help="Tasks to run at the same time"),
+    purge_every: int = typer.Option(3600, help="Seconds between deletions of expired traces. 0 turns it off."),
+):
+    """Run background tasks: online evaluation of traces and deletion of old traces.
+
+    Start as many workers as you need, on any machine that reaches the database (or Redis).
+    """
+    import logging
+    import threading
+
+    from .handlers import default_handlers
+    from .jobs import install_signal_handlers, make_queue, run_worker
+    from .traces import purge_expired
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    factory = get_factory()
+    stop = threading.Event()
+    install_signal_handlers(stop)
+    periodic = [(float(purge_every), lambda: logging.getLogger("trustbench.worker").info("purged %d expired trace(s)", purge_expired(factory)))] if purge_every else []
+    console.print(f"Worker started with {concurrency} thread(s). Press Ctrl+C to stop.")
+    handled = run_worker(make_queue(factory), default_handlers(factory), concurrency=concurrency, stop=stop, periodic=periodic)
+    console.print(f"Stopped. {handled} task(s) handled.")
+
+
+@jobs_app.command("status")
+def jobs_status():
+    from .jobs import make_queue
+    c = make_queue(get_factory()).counts()
+    console.print(f"queued {c['queued']}, running {c['running']}, done {c['done']}, dead {c['dead']}")
+
+
+@jobs_app.command("dead")
+def jobs_dead(limit: int = 20):
+    """Tasks that failed too often. Look at the error, fix the cause, then retry."""
+    from .jobs import make_queue
+    t = Table(title="Dead tasks")
+    for col in ["Id", "Kind", "Attempts", "Workspace", "Last error"]:
+        t.add_column(col)
+    for d in make_queue(get_factory()).dead(limit):
+        t.add_row(d["id"], d["kind"] or "-", str(d["attempts"]), d["workspace_id"] or "-", (d["error"] or "")[:90])
+    console.print(t)
+
+
+@jobs_app.command("retry")
+def jobs_retry(job_id: str):
+    from .jobs import make_queue
+    if make_queue(get_factory()).retry_dead(job_id):
+        console.print(f"Task {job_id} is queued again.")
+    else:
+        _fail(f"Task {job_id} is not a dead task.")

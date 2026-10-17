@@ -47,3 +47,21 @@ def test_secret_key_command_makes_a_working_key(monkeypatch):
     key = out.output.split()[0]
     monkeypatch.setenv("TRUSTBENCH_SECRET_KEY", key)
     assert crypto.decrypt_text(crypto.encrypt_text("x")) == "x"
+
+
+def test_jobs_commands_and_worker_wiring(tmp_path, monkeypatch):
+    url = f"sqlite:///{tmp_path}/t.db"
+    monkeypatch.setenv("TRUSTBENCH_DATABASE_URL", url)
+    monkeypatch.delenv("TRUSTBENCH_REDIS_URL", raising=False)
+    factory = init_db(make_engine(url))
+    from trustbench.jobs import DbQueue
+    q = DbQueue(factory)
+    q.enqueue("never_handled", {}, max_attempts=1)
+    job = q.claim("w", ["never_handled"])
+    q.fail(job.id, "ValueError: broken thing")
+    assert "dead 1" in runner.invoke(app, ["jobs", "status"]).output
+    dead = runner.invoke(app, ["jobs", "dead"])
+    assert "never_handled" in dead.output and "broken thing" in dead.output
+    assert runner.invoke(app, ["jobs", "retry", job.id]).exit_code == 0
+    assert runner.invoke(app, ["jobs", "retry", job.id]).exit_code == 1
+    assert "queued 1" in runner.invoke(app, ["jobs", "status"]).output
