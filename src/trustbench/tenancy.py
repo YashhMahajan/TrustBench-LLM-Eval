@@ -98,7 +98,7 @@ def authenticate(factory: sessionmaker, token: str | None) -> Principal | None:
         for row in s.scalars(select(ApiKey).where(ApiKey.prefix == token[:11], ApiKey.revoked_at.is_(None))):
             if hmac.compare_digest(row.key_hash, candidate):
                 now = utcnow()
-                if row.last_used_at is None or (now - row.last_used_at.replace(tzinfo=now.tzinfo)) > dt.timedelta(minutes=1):
+                if row.last_used_at is None or (now - row.last_used_at) > dt.timedelta(minutes=1):
                     row.last_used_at = now
                 return Principal(row.workspace_id, row.id, row.role)
     return None

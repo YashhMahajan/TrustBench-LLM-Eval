@@ -26,7 +26,9 @@ Json = JSON().with_variant(JSONB(), "postgresql")
 
 
 def utcnow() -> dt.datetime:
-    return dt.datetime.now(dt.timezone.utc)
+    """The current time in UTC without a time zone. All our columns hold UTC without a zone,
+    so the database cannot shift the value by its own time zone."""
+    return dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
 
 
 class Base(DeclarativeBase):
@@ -229,6 +231,60 @@ class ApiKey(Base):
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
     last_used_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)
     revoked_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)
+
+
+class ProductionTrace(Base):
+    """One request to an AI system in production. By default it holds measurements only, no text."""
+
+    __tablename__ = "production_traces"
+    __table_args__ = (UniqueConstraint("workspace_id", "trace_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    trace_id: Mapped[str] = mapped_column(String(64))            # Chosen by the client. Sending it again changes nothing.
+    name: Mapped[str] = mapped_column(String(100), index=True)   # The feature or app. For example "support-bot".
+    started_at: Mapped[dt.datetime] = mapped_column(index=True)
+    duration_ms: Mapped[float] = mapped_column(Float)
+    status: Mapped[str] = mapped_column(String(10))              # ok | error
+    error_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    model: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    prompt_version: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    input_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    output_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    input_chars: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_chars: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    input_enc: Mapped[str | None] = mapped_column(Text, nullable=True)      # Encrypted, redacted text. Only with store_content.
+    output_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    context_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    redactions: Mapped[dict] = mapped_column(Json, default=dict)            # How many items of each kind were removed.
+    truncated: Mapped[bool] = mapped_column(Boolean, default=False)
+    tags: Mapped[dict] = mapped_column(Json, default=dict)
+    feedback: Mapped[int | None] = mapped_column(Integer, nullable=True)    # -1, 0 or 1 from the user.
+    sampled: Mapped[bool] = mapped_column(Boolean, default=False)
+    eval_state: Mapped[str] = mapped_column(String(20), default="not_sampled")  # not_sampled | pending | done | error
+    created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
+    expires_at: Mapped[dt.datetime] = mapped_column(index=True)
+
+
+class TraceSpan(Base):
+    """A step inside a trace: a model call, a retrieval, a tool call. Spans form a tree."""
+
+    __tablename__ = "trace_spans"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    trace_pk: Mapped[int] = mapped_column(ForeignKey("production_traces.id", ondelete="CASCADE"), index=True)
+    workspace_id: Mapped[str] = mapped_column(String(32), index=True)
+    span_id: Mapped[str] = mapped_column(String(64))
+    parent_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    kind: Mapped[str] = mapped_column(String(20))                # model | retrieval | tool | other
+    name: Mapped[str] = mapped_column(String(100))
+    offset_ms: Mapped[float] = mapped_column(Float)              # Start, counted from the start of the trace.
+    duration_ms: Mapped[float] = mapped_column(Float)
+    status: Mapped[str] = mapped_column(String(10))
+    attrs: Mapped[dict] = mapped_column(Json, default=dict)
 
 
 def make_engine(url: str) -> Engine:
