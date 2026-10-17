@@ -1,0 +1,102 @@
+import typer
+from rich.console import Console
+from rich.table import Table
+
+from . import report
+from .config import database_url, detect_models
+from .datasets import DatasetError, import_dataset, load_cases, resolve_path
+from .db import init_db, make_engine
+from .engine import RunOptions, rescore, run_eval
+
+app = typer.Typer(help="TrustBench: evaluate LLMs. Set an API key and run.", no_args_is_help=True)
+console = Console()
+
+
+def _factory():
+    try:
+        return init_db(make_engine(database_url()))
+    except Exception as e:
+        console.print(f"[red]Cannot reach the database:[/red] {e}\n"
+                      "Start it with 'docker compose up -d', or set TRUSTBENCH_DATABASE_URL.")
+        raise typer.Exit(1)
+
+
+def _show(factory, run_id: str, batch: int | None = None) -> None:
+    rows = report.case_rows(factory, run_id, batch)
+    t = Table(title=f"Run {run_id}")
+    for col in ["Model", "Cases", "Scored", "Passed", "Pass rate", "Call failures", "Skipped", "Mean latency", "Cost"]:
+        t.add_column(col)
+    for m in report.summarize(rows):
+        t.add_row(m["model"], str(m["total"]), str(m["scored"]), str(m["passed"]),
+                  f"{m['pass_rate']:.0%}" if m["pass_rate"] is not None else "-",
+                  str(m["failed_calls"]), str(m["skipped"]),
+                  f"{m['mean_latency_ms']:.0f} ms" if m["mean_latency_ms"] is not None else "-",
+                  f"${m['cost']:.4f}" if m["cost"] else "-")
+    console.print(t)
+    run = report.get_run(factory, run_id)
+    if run.status != "complete":
+        console.print(f"[yellow]Run status: {run.status}. Some cases did not finish.[/yellow]")
+
+
+@app.command()
+def run(
+    dataset: str = typer.Option("smoke", help="Built-in suite name or path to .jsonl/.json/.csv"),
+    model: list[str] = typer.Option(None, "--model", "-m", help="provider:model. Repeat for more models."),
+    reps: int = typer.Option(1, help="Repetitions for each case"),
+    concurrency: int = typer.Option(4),
+    retries: int = typer.Option(2),
+    timeout: float = typer.Option(60.0, help="Seconds for each model call"),
+    budget: float = typer.Option(None, help="Stop starting new calls after this many USD"),
+    name: str = typer.Option(None, help="A label for the run"),
+):
+    """Run a dataset against your models. Without --model, use every API key found."""
+    specs = model or detect_models()
+    if not specs:
+        console.print("[red]No model found.[/red] Set ANTHROPIC_API_KEY, OPENAI_API_KEY or GEMINI_API_KEY, "
+                      "or use --model mock:smoke to try it without a key.")
+        raise typer.Exit(1)
+    try:
+        path = resolve_path(dataset)
+        cases = load_cases(path)
+    except DatasetError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    factory = _factory()
+    with factory() as s:
+        version = import_dataset(s, path.stem, cases)
+    console.print(f"Dataset {version.name} version {version.content_hash}: {version.case_count} cases. "
+                  f"Models: {', '.join(specs)}")
+    try:
+        run_id = run_eval(factory, version.id, specs,
+                          RunOptions(repetitions=reps, concurrency=concurrency, retries=retries,
+                                     timeout=timeout, budget_usd=budget, name=name))
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    _show(factory, run_id)
+
+
+@app.command("rescore")
+def rescore_cmd(run_id: str):
+    """Score the stored outputs of a run again. No model calls."""
+    factory = _factory()
+    batch = rescore(factory, run_id)
+    console.print(f"New scoring batch: {batch}")
+    _show(factory, run_id, batch)
+
+
+
+@app.command()
+def results(run_id: str, failed: bool = typer.Option(False, "--failed", help="Show failures only")):
+    """Show the result of each case."""
+    factory = _factory()
+    _show(factory, run_id)
+    t = Table()
+    for col in ["Model", "Case", "Result", "Detail"]:
+        t.add_column(col)
+    for r in report.case_rows(factory, run_id):
+        if failed and r["passed"]:
+            continue
+        result = r["status"] if r["passed"] is None else ("pass" if r["passed"] else "fail")
+        t.add_row(r["model"], r["case_id"], result, r["error"] or r["rationale"] or "")
+    console.print(t)

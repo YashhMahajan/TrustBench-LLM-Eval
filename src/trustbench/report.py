@@ -1,0 +1,73 @@
+"""Read results back from the database."""
+
+from sqlalchemy import func, select
+from sqlalchemy.orm import sessionmaker
+
+from .db import (
+    EvaluationResult, EvaluationRun, ModelConfiguration, ModelResponse, TestCase, TestExecution,
+)
+
+
+def case_rows(factory: sessionmaker, run_id: str, batch: int | None = None) -> list[dict]:
+    """One row for each execution. 'passed' is None when the model call failed."""
+    with factory() as s:
+        if batch is None:
+            batch = s.scalar(
+                select(func.max(EvaluationResult.batch))
+                .join(ModelResponse, ModelResponse.id == EvaluationResult.response_id)
+                .join(TestExecution, TestExecution.id == ModelResponse.execution_id)
+                .where(TestExecution.run_id == run_id)) or 0
+        execs = s.execute(
+            select(TestExecution, TestCase, ModelConfiguration)
+            .join(TestCase, TestCase.id == TestExecution.test_case_id)
+            .join(ModelConfiguration, ModelConfiguration.id == TestExecution.model_config_id)
+            .where(TestExecution.run_id == run_id)
+            .order_by(ModelConfiguration.id, TestCase.id, TestExecution.repetition)).all()
+        rows = []
+        for ex, case, mc in execs:
+            attempts = s.scalars(select(ModelResponse).where(ModelResponse.execution_id == ex.id)
+                                 .order_by(ModelResponse.attempt)).all()
+            last = attempts[-1] if attempts else None
+            results = []
+            if last and last.ok:
+                results = s.scalars(select(EvaluationResult).where(
+                    EvaluationResult.response_id == last.id, EvaluationResult.batch == batch)).all()
+            rows.append({
+                "model": f"{mc.provider}:{mc.model}", "case_id": case.case_id, "status": ex.status,
+                "attempts": len(attempts), "output": last.output if last else None,
+                "error": last.error if last and not last.ok else None,
+                "latency_ms": last.latency_ms if last else None,
+                "cost_usd": last.cost_usd if last else None,
+                "passed": all(r.passed for r in results) if results else None,
+                "rationale": "; ".join(r.rationale for r in results if not r.passed),
+            })
+        return rows
+
+
+def summarize(rows: list[dict]) -> list[dict]:
+    """Per model: counts, pass rate and mean latency."""
+    out: dict[str, dict] = {}
+    for r in rows:
+        m = out.setdefault(r["model"], {"model": r["model"], "total": 0, "scored": 0,
+                                         "passed": 0, "failed_calls": 0, "skipped": 0,
+                                         "latency": [], "cost": 0.0})
+        m["total"] += 1
+        if r["status"] == "skipped":
+            m["skipped"] += 1
+        elif r["status"] == "failed":
+            m["failed_calls"] += 1
+        elif r["passed"] is not None:
+            m["scored"] += 1
+            m["passed"] += bool(r["passed"])
+            m["latency"].append(r["latency_ms"])
+        m["cost"] += r["cost_usd"] or 0.0
+    for m in out.values():
+        lat = m.pop("latency")
+        m["pass_rate"] = m["passed"] / m["scored"] if m["scored"] else None
+        m["mean_latency_ms"] = sum(lat) / len(lat) if lat else None
+    return list(out.values())
+
+
+def get_run(factory: sessionmaker, run_id: str) -> EvaluationRun | None:
+    with factory() as s:
+        return s.get(EvaluationRun, run_id)
