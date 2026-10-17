@@ -115,3 +115,12 @@ def test_judge_failure_is_an_evaluator_problem_not_a_model_failure(factory):
                       provider_factory=lambda n: providers[n])
     row = report.case_rows(factory, run_id)[0]
     assert row["status"] == "done" and row["passed"] is False and "Evaluator error" in row["rationale"]
+
+
+def test_case_detail_explains_each_score(factory, version):
+    run_id = go(factory, version, MockProvider(ANSWERS, fail_first=1))
+    d = report.case_detail(factory, run_id, "b")[0]
+    assert d["output"] == "5" and d["expected"] == {"answer": "4"}
+    assert [a["ok"] for a in d["attempts"]] == [False, True]
+    assert d["results"][0]["passed"] is False and "Expected one of" in d["results"][0]["rationale"]
+    assert report.case_detail(factory, run_id, "missing") == []

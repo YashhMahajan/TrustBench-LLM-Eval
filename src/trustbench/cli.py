@@ -225,3 +225,30 @@ def judge_bias_cmd(
     console.print(t)
     if r.errors:
         console.print(f"[yellow]{r.errors} probe(s) skipped because the judge reply was not readable.[/yellow]")
+
+
+@app.command()
+def show(run_id: str, case_id: str):
+    """Explain the result of one case: the answer, each score and the reason for it."""
+    details = report.case_detail(_factory(), run_id, case_id)
+    if not details:
+        console.print(f"[red]No case '{case_id}' in run {run_id}.[/red]")
+        raise typer.Exit(1)
+    for d in details:
+        console.rule(f"{d['model']}  (repetition {d['repetition']}, {d['status']})")
+        console.print(f"[bold]Input:[/bold] {d['input']}")
+        console.print(f"[bold]Expected:[/bold] {d['expected'] or '-'}")
+        console.print(f"[bold]Output:[/bold] {d['output'] if d['output'] is not None else '-'}")
+        for a in d["attempts"]:
+            if not a["ok"]:
+                console.print(f"[yellow]Attempt {a['attempt']} failed: {a['error']}[/yellow]")
+        for r in d["results"]:
+            mark = "[green]pass[/green]" if r["passed"] else "[red]fail[/red]"
+            console.print(f"{mark} {r['evaluator']} ({r['rubric_version']}), score {r['score']:.2f}: {r['rationale']}")
+            if r["details"].get("human_review"):
+                console.print("  [yellow]A person should check this result.[/yellow]")
+            if r["details"].get("error"):
+                console.print("  [yellow]This is an evaluator problem, not a model failure.[/yellow]")
+            for c in r["details"].get("claims", []):
+                flag = " (check)" if c.get("needs_review") else ""
+                console.print(f"  - {c['label']}{flag}: {c['claim']}" + (f'  [dim]"{c["quote"]}"[/dim]' if c.get("quote") else ""))

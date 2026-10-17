@@ -53,7 +53,11 @@ src/trustbench/
 tests/
 ```
 
-Data model: DatasetVersion, TestCase, ModelConfiguration, EvaluationRun, TestExecution, ModelResponse, EvaluationResult. More tables come with later phases.
+Data model: DatasetVersion, TestCase, ModelConfiguration, EvaluationRun, TestExecution, ModelResponse, EvaluationResult, HumanAnnotation. More tables come with later phases.
+
+Phase 2 modules: eval_* (evaluators), judge, pairwise, claims, verify, hallucination, quality, annotations, agreement, judge_validation, judge_bias, stats (Wilson interval).
+
+Open item: tables are created with `create_all`. A change to a table needs a migration tool (Alembic). We add it before the first release.
 
 Invariants (we enforce them in code and tests):
 1. A dataset version never changes. A change makes a new version.
@@ -77,7 +81,7 @@ Each phase gives a working system. Each phase has tests before we continue.
 - CLI `trustbench run` with automatic key detection.
 - Exit test: re-scoring uses stored outputs. It sends zero model calls.
 
-### Phase 2 — Scoring quality
+### Phase 2 — Scoring quality (DONE)
 - Schema, programmatic, reference, LLM-judge and pairwise evaluators.
 - Claim-level hallucination pipeline: claims -> evidence -> Supported / Contradicted / Insufficient / Not applicable.
 - Metrics: unsupported claim rate, contradiction rate, evidence coverage, unassessable fraction.

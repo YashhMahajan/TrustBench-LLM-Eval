@@ -48,3 +48,12 @@ def test_run_refuses_a_dataset_with_errors(tmp_path, monkeypatch):
                    '{"id": "2", "input": "same q", "expected": {"answer": "b"}}\n')
     out = runner.invoke(app, ["run", "--dataset", str(bad), "--model", "mock:smoke"])
     assert out.exit_code == 1 and "trustbench check" in out.output
+
+
+def test_show_explains_a_failed_case(tmp_path, monkeypatch):
+    monkeypatch.setenv("TRUSTBENCH_DATABASE_URL", f"sqlite:///{tmp_path}/t.db")
+    out = runner.invoke(app, ["run", "--model", "mock:smoke"])
+    run_id = out.output.split("Run ")[1].split()[0].strip("│ ")
+    shown = runner.invoke(app, ["show", run_id, "fact_002"])
+    assert shown.exit_code == 0 and "365" in shown.output and "Expected one of" in shown.output
+    assert runner.invoke(app, ["show", run_id, "nope"]).exit_code == 1
