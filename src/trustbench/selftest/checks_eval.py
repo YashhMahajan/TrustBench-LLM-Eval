@@ -184,6 +184,7 @@ def judge_instrument(ctx: Ctx):
 
 
 class _Scripted(Provider):
+    cacheable = False
     name = "scripted"
 
     def __init__(self, fn):

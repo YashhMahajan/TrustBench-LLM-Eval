@@ -16,6 +16,7 @@ SMOKE_ANSWERS = {
 
 class MockProvider(Provider):
     name = "mock"
+    cacheable = False
 
     def __init__(self, answers: dict[str, str] | None = None, fail_first: int = 0,
                  always_fail: bool = False, delay: float = 0.0):

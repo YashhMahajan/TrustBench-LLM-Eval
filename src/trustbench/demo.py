@@ -109,6 +109,7 @@ def _json_for(schema: dict, values: list[str]):
 
 class DemoProvider(Provider):
     """Answers the cases of the demo suite as a model of a chosen quality would."""
+    cacheable = False
     name = "demo"
 
     def __init__(self, cases: list[CaseSpec], profiles: dict[str, Profile] = PROFILES):

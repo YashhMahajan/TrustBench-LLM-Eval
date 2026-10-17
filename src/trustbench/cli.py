@@ -1,7 +1,8 @@
+from contextlib import contextmanager
+from pathlib import Path
+
 import typer
 from rich.table import Table
-
-from pathlib import Path
 
 from .cli_common import console, get_factory
 from .config import detect_models
@@ -39,6 +40,8 @@ def run(
     budget: float = typer.Option(None, help="Stop starting new calls after this many USD"),
     name: str = typer.Option(None, help="A label for the run"),
     judge: str = typer.Option(None, help="provider:model that grades open answers"),
+    rpm: float = typer.Option(None, help="Most calls to start in one minute for each provider"),
+    no_cache: bool = typer.Option(False, "--no-cache", help="Ask the model again, even when the answer is stored"),
 ):
     """Run a dataset against your models. Without --model, use every API key found."""
     from .datasets import DatasetError
@@ -47,7 +50,7 @@ def run(
     from .datasets import load_cases
     from . import quality
     from .datasets import resolve_path
-    from .engine import run_eval
+    from .engine import RunInterrupted, run_eval
     specs = model or detect_models()
     if not specs:
         console.print("[red]No model found.[/red] Set ANTHROPIC_API_KEY, OPENAI_API_KEY or GEMINI_API_KEY, "
@@ -74,14 +77,88 @@ def run(
     console.print(f"Dataset {version.name} version {version.content_hash}: {version.case_count} cases. "
                   f"Models: {', '.join(specs)}")
     try:
-        run_id = run_eval(factory, version.id, specs,
-                          RunOptions(repetitions=reps, concurrency=concurrency, retries=retries,
-                                     timeout=timeout, budget_usd=budget, name=name, judge=judge),
-                          workspace_id=workspace_id)
+        with _progress_bar() as update:
+            run_id = run_eval(factory, version.id, specs,
+                              RunOptions(repetitions=reps, concurrency=concurrency, retries=retries,
+                                         timeout=timeout, budget_usd=budget, name=name, judge=judge,
+                                         rpm=rpm, cache=not no_cache),
+                              workspace_id=workspace_id, progress=update)
     except ValueError as e:
         console.print(f"[red]{e}[/red]")
         raise typer.Exit(1)
+    except RunInterrupted as e:
+        _stopped(e)
     _show(factory, run_id)
+
+
+def _stopped(e) -> None:
+    console.print(f"[yellow]Stopped. Saved results are kept. Finish the run with:[/yellow] trustbench resume {e.run_id}")
+    raise typer.Exit(130)
+
+
+@app.command()
+def resume(run_id: str, budget: float = typer.Option(None, help="A new budget in USD for the part that is left")):
+    """Finish a run that stopped (Ctrl-C, a crash or a budget). Finished cases are not run again."""
+    from .engine import RunInterrupted, resume_run
+    factory = _factory()
+    try:
+        with _progress_bar() as update:
+            resume_run(factory, run_id, progress=update, budget_usd=budget)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    except RunInterrupted as e:
+        _stopped(e)
+    _show(factory, run_id)
+
+
+@contextmanager
+def _progress_bar():
+    """A progress bar that shows nothing when the output is not a terminal."""
+    from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeRemainingColumn
+    bar = Progress(TextColumn("{task.description}"), BarColumn(), MofNCompleteColumn(), TimeRemainingColumn(),
+                   console=console, transient=True, disable=not console.is_terminal)
+    task = bar.add_task("Running", total=None)
+
+    def update(p) -> None:
+        bar.update(task, total=p.total, completed=p.done,
+                   description=f"Running ({p.failed} failed, {p.cached} from cache, ${p.cost_usd:.4f})")
+
+    with bar:
+        yield update
+
+
+cache_app = typer.Typer(help="Stored model answers. Asking the same thing again costs nothing.", no_args_is_help=True)
+app.add_typer(cache_app, name="cache")
+
+
+@cache_app.command("stats")
+def cache_stats():
+    """Show how many answers are stored."""
+    from sqlalchemy import func, select
+    from .db import ResponseCache
+    with _factory()() as s:
+        n, size, oldest = s.execute(select(func.count(), func.coalesce(func.sum(func.length(ResponseCache.text)), 0),
+                                           func.min(ResponseCache.created_at))).one()
+    console.print(f"{n} stored answers, {size / 1024:.1f} KB of text." + (f" The oldest is from {oldest:%Y-%m-%d}." if oldest else ""))
+
+
+@cache_app.command("clear")
+def cache_clear(model: str = typer.Option(None, help="Only this provider:model"),
+                yes: bool = typer.Option(False, "--yes", help="Do not ask")):
+    """Delete stored answers. Runs keep their results. Only new requests are affected."""
+    from sqlalchemy import delete
+    from .db import ResponseCache
+    from .providers import split_spec
+    if not yes and not typer.confirm("Delete the stored answers?"):
+        raise typer.Exit(1)
+    stmt = delete(ResponseCache)
+    if model:
+        provider, name = split_spec(model)
+        stmt = stmt.where(ResponseCache.provider == provider, ResponseCache.model == name)
+    with _factory().begin() as s:
+        n = s.execute(stmt).rowcount
+    console.print(f"Deleted {n} stored answers.")
 
 
 @app.command("rescore")

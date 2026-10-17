@@ -24,16 +24,23 @@ class GenResponse:
 
 
 class ProviderError(Exception):
-    def __init__(self, message: str, retryable: bool = False):
+    def __init__(self, message: str, retryable: bool = False, retry_after: float | None = None):
         super().__init__(message)
         self.retryable = retryable
+        self.retry_after = retry_after          # Seconds the server asked us to wait. None if it did not say.
 
 
 class Provider(ABC):
     name: str
+    # False for fake providers: their answers come from how they are set up, not from the model name,
+    # so the same request can give a different answer and a stored answer would be wrong.
+    cacheable: bool = True
 
     @abstractmethod
     async def generate(self, req: GenRequest) -> GenResponse: ...
+
+    async def aclose(self) -> None:
+        """Free the network connections. The engine calls this when the run ends."""
 
 
 # USD per 1 million tokens (input, output). Prices change.
@@ -51,8 +58,18 @@ def estimate_cost(model: str, input_tokens: int | None, output_tokens: int | Non
     return (input_tokens * pin + output_tokens * pout) / 1_000_000
 
 
-def raise_for_status(status: int, body: str) -> None:
+def parse_retry_after(value: str | None) -> float | None:
+    """The Retry-After header as seconds. We read the number form and ignore the date form."""
+    try:
+        seconds = float(value) if value is not None else None
+    except ValueError:
+        return None
+    return seconds if seconds is not None and seconds >= 0 else None
+
+
+def raise_for_status(status: int, body: str, headers=None) -> None:
     if status < 400:
         return
     # Rate limits and server errors may work on a retry. Other client errors will not.
-    raise ProviderError(f"HTTP {status}: {body[:300]}", retryable=status == 429 or status >= 500)
+    retry_after = parse_retry_after(headers.get("retry-after")) if headers is not None else None
+    raise ProviderError(f"HTTP {status}: {body[:300]}", retryable=status == 429 or status >= 500, retry_after=retry_after)

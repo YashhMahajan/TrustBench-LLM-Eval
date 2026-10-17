@@ -17,7 +17,7 @@ from ..dataprotect import update_policy
 from ..datasets import CaseSpec, import_dataset
 from ..db import EvaluationResult, ModelResponse, ProductionTrace, TestCase, init_db, make_engine
 from ..demo import PROFILES, DemoProvider, Profile, demo_cases
-from ..engine import RunOptions, rescore, run_eval
+from ..engine import RunOptions, rescore, resume_run, run_eval
 from ..failures import collect_failures
 from ..gate import evaluate_gate
 from ..policy import ReleasePolicy, Rule
@@ -420,6 +420,37 @@ def tasks_survive(ctx: Ctx):
     run_worker(q, {"a": lambda p, j: done.append(p["n"])}, concurrency=1, idle_exit=True, poll_interval=0.01)
     c = q.counts()
     return c["done"] == 30 and c["dead"] == 0 and set(done) == set(range(30)), f"{c['done']} of 30 finished, {c['dead']} dead", f"{len(done)} runs for 30 tasks: 10 tasks ran again after their worker died"
+
+
+@check("invariants", "A repeated or resumed run never pays for the same model call twice", "the second run makes 0 calls and the same scores; a resumed run calls each case once")
+def no_paid_work_twice(ctx: Ctx):
+    import os
+    cases = [CaseSpec(id=f"q{i}", input=f"Question number {i} is?", expected={"answer": "yes"}) for i in range(10)]
+    factory = memory()
+    with factory() as s:
+        v = import_dataset(s, "d", cases)
+    provider = MockProvider({"Question": "yes"})
+    provider.cacheable = True                                # A real provider is cached. The mock is not, unless we say so.
+    first = run_eval(factory, v.id, ["mock:m"], RunOptions(backoff=0), provider_factory=lambda n: provider)
+    calls = provider.calls
+    second = run_eval(factory, v.id, ["mock:m"], RunOptions(backoff=0), provider_factory=lambda n: provider)
+    same = [r.passed for r in load_run(factory, first).records] == [r.passed for r in load_run(factory, second).records]
+    repeat_calls = provider.calls - calls
+    fresh = MockProvider({"Question": "yes"})
+    os.environ["TRUSTBENCH_PRICES"] = json.dumps({"m": [1e6, 1e6]})
+    try:
+        stopped = run_eval(factory, v.id, ["mock:m"], RunOptions(backoff=0, concurrency=1, budget_usd=0.0001, cache=False),
+                           provider_factory=lambda n: fresh)
+    finally:
+        os.environ.pop("TRUSTBENCH_PRICES", None)
+    before = fresh.calls
+    resume_run(factory, stopped, provider_factory=lambda n: fresh, budget_usd=100)
+    rd = load_run(factory, stopped)
+    resumed_calls = fresh.calls - before
+    done = sum(r.status == "done" for r in rd.records)
+    ok = repeat_calls == 0 and same and rd.status == "complete" and done == 10 and before + resumed_calls == 10
+    return ok, f"repeat made {repeat_calls} calls, resume made {resumed_calls} for {10 - (before)} open cases, {done} of 10 done", \
+        f"scores same: {same}; run status: {rd.status}"
 
 
 @check("invariants", "The migrations build exactly the schema of the models", "the database made by the migrations has no difference from the models")

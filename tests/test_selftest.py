@@ -260,3 +260,23 @@ def test_every_check_has_a_test_that_breaks_the_code_it_watches():
     source = Path(__file__).read_text()
     missing = [name for _, name, _, _ in selftest.REGISTRY if f'"{name}"' not in source]
     assert not missing, f"No sabotage test for: {missing}"
+
+
+def test_a_cache_that_never_hits_is_noticed(monkeypatch):
+    import uuid
+    broken(monkeypatch, "trustbench.engine.cache_key", lambda *a, **k: uuid.uuid4().hex)
+    assert "A repeated or resumed run never pays for the same model call twice" in failed_names(["invariants"])
+
+
+def test_a_resume_that_starts_over_is_noticed(monkeypatch):
+    from trustbench.engine import RunOptions, run_eval
+
+    def starts_over(factory, run_id, provider_factory=None, progress=None, budget_usd=None):
+        from trustbench.db import EvaluationRun, TestCase, TestExecution
+        from sqlalchemy import select, update
+        with factory.begin() as s:                              # Wrongly puts every case back to work, finished or not.
+            s.execute(update(TestExecution).where(TestExecution.run_id == run_id).values(status="skipped"))
+        from trustbench import engine
+        return engine.resume_run(factory, run_id, provider_factory, progress, budget_usd)
+    broken(monkeypatch, "trustbench.selftest.checks_system.resume_run", starts_over)
+    assert "A repeated or resumed run never pays for the same model call twice" in failed_names(["invariants"])

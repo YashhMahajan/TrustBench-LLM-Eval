@@ -1,10 +1,19 @@
 """Adapters for the HTTP APIs. One interface, same result shape for all."""
 
+import re
 import time
 
 import httpx
 
 from .base import GenRequest, GenResponse, Provider, ProviderError, raise_for_status
+
+
+_REASONING = re.compile(r"^(o\d|gpt-5)")
+
+
+def is_reasoning_model(model: str) -> bool:
+    """OpenAI models of the o-series and the GPT-5 family use a different request shape."""
+    return bool(_REASONING.match(model))
 
 
 class AnthropicProvider(Provider):
@@ -14,6 +23,7 @@ class AnthropicProvider(Provider):
                  base_url: str = "https://api.anthropic.com"):
         self.api_key, self.base_url = api_key, base_url
         self.client = client or httpx.AsyncClient()
+        self._owns_client = client is None
 
     async def generate(self, req: GenRequest) -> GenResponse:
         body = {
@@ -35,12 +45,16 @@ class AnthropicProvider(Provider):
         except httpx.TransportError as e:
             raise ProviderError(f"Network error: {e}", retryable=True) from e
         latency = (time.perf_counter() - t0) * 1000
-        raise_for_status(r.status_code, r.text)
+        raise_for_status(r.status_code, r.text, r.headers)
         data = r.json()
         text = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
         usage = data.get("usage", {})
         return GenResponse(text, usage.get("input_tokens"), usage.get("output_tokens"),
                            latency, data.get("model", req.model))
+
+    async def aclose(self) -> None:
+        if self._owns_client:
+            await self.client.aclose()
 
 
 class OpenAICompatibleProvider(Provider):
@@ -50,12 +64,17 @@ class OpenAICompatibleProvider(Provider):
                  client: httpx.AsyncClient | None = None):
         self.name, self.api_key, self.base_url = name, api_key, base_url.rstrip("/")
         self.client = client or httpx.AsyncClient()
+        self._owns_client = client is None
 
     async def generate(self, req: GenRequest) -> GenResponse:
         messages = [{"role": "system", "content": req.system}] if req.system else []
         messages.append({"role": "user", "content": req.prompt})
-        body = {"model": req.model, "messages": messages,
-                "temperature": req.temperature, "max_tokens": req.max_tokens}
+        body = {"model": req.model, "messages": messages}
+        if self.name == "openai" and is_reasoning_model(req.model):
+            # These models reject max_tokens and any temperature other than the default.
+            body["max_completion_tokens"] = req.max_tokens
+        else:
+            body.update(temperature=req.temperature, max_tokens=req.max_tokens)
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
         t0 = time.perf_counter()
         try:
@@ -64,9 +83,13 @@ class OpenAICompatibleProvider(Provider):
         except httpx.TransportError as e:
             raise ProviderError(f"Network error: {e}", retryable=True) from e
         latency = (time.perf_counter() - t0) * 1000
-        raise_for_status(r.status_code, r.text)
+        raise_for_status(r.status_code, r.text, r.headers)
         data = r.json()
         usage = data.get("usage") or {}
         return GenResponse(data["choices"][0]["message"]["content"] or "",
                            usage.get("prompt_tokens"), usage.get("completion_tokens"),
                            latency, data.get("model", req.model))
+
+    async def aclose(self) -> None:
+        if self._owns_client:
+            await self.client.aclose()

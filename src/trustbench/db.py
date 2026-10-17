@@ -95,6 +95,9 @@ class EvaluationRun(Base):
     judge_cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
     finished_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)
+    # Pass rate and interval for each model, stored when the run ends or is scored again.
+    # The run list reads this and does not load the whole run. None means: not computed yet.
+    overview: Mapped[dict | None] = mapped_column(Json, nullable=True)
 
 
 class TestExecution(Base):
@@ -383,3 +386,23 @@ def make_engine(url: str) -> Engine:
 def init_db(engine: Engine) -> sessionmaker:
     Base.metadata.create_all(engine)
     return sessionmaker(engine, expire_on_commit=False)
+
+
+class ResponseCache(Base):
+    """A model answer kept by its request. The same request later costs no model call.
+
+    The key is a hash of everything that can change the answer (see engine.cache_key). We store the answer
+    and its token counts, so the cost of a repeated run is zero and the scores stay the same.
+    """
+
+    __tablename__ = "response_cache"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    provider: Mapped[str] = mapped_column(String(50))
+    model: Mapped[str] = mapped_column(String(200))
+    text: Mapped[str] = mapped_column(Text)
+    provider_model_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    latency_ms: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)

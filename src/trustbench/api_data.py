@@ -19,6 +19,7 @@ from .failures import classify
 from .frontier import apply_constraints, candidates_from_runs, pareto
 from .gate import evaluate_gate
 from .operations import operations
+from .overview import get_overview
 from .policy import ReleasePolicy
 from .quality import check as check_dataset
 from .rag import diagnose
@@ -84,11 +85,7 @@ def register(app: FastAPI, need, db) -> None:
             baseline_of = {b.run_id: b.name for b in s.scalars(select(Baseline).where(owned(Baseline.workspace_id, ws)))}
         out = []
         for run, version in rows:
-            rd = load_run(f, run.id)
-            models = {}
-            for m in rd.models:
-                card = scorecard(rd.for_model(m))
-                models[m] = {"rate": card.overall.rate, "ci": card.overall.ci, "n": card.overall.n}
+            models = get_overview(f, run)
             out.append({"id": run.id, "name": run.name, "status": run.status, "created_at": _iso(run.created_at), "finished_at": _iso(run.finished_at),
                         "dataset": version.name, "dataset_version": version.content_hash, "cases": version.case_count, "models": models,
                         "cost_usd": run.total_cost_usd, "judge_cost_usd": run.judge_cost_usd, "baseline": baseline_of.get(run.id)})
