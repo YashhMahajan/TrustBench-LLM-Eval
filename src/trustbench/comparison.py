@@ -36,11 +36,11 @@ class Comparison:
     warnings: list[str] = field(default_factory=list)
 
 
-def _delta(label: str, base: list[float], cand: list[float], min_effect: float) -> Delta:
+def _delta(label: str, base: list[float], cand: list[float], min_effect: float, n_boot: int) -> Delta:
     n = len(base)
     if n == 0:
         return Delta(label, 0, None, None, None, None, None, "none", "inconclusive")
-    diff, lo, hi = paired_bootstrap(base, cand)
+    diff, lo, hi = paired_bootstrap(base, cand, n_boot=n_boot)
     binary = all(x in (0.0, 1.0) for x in base + cand)
     if binary:
         a_only = sum(1 for x, y in zip(base, cand) if x == 1 and y == 0)
@@ -53,7 +53,8 @@ def _delta(label: str, base: list[float], cand: list[float], min_effect: float) 
                  b_only, a_only)
 
 
-def compare_records(baseline: list[Record], candidate: list[Record], min_effect: float = 0.01) -> Comparison:
+def compare_records(baseline: list[Record], candidate: list[Record], min_effect: float = 0.01,
+                    n_boot: int = 4000) -> Comparison:
     base, cand = case_outcomes(baseline), case_outcomes(candidate)
     task_of = {r.case_id: r.task for r in baseline + candidate}
     shared = sorted(c for c in base.keys() & cand.keys() if base[c] is not None and cand[c] is not None)
@@ -67,8 +68,8 @@ def compare_records(baseline: list[Record], candidate: list[Record], min_effect:
     for c in shared:
         tasks.setdefault(task_of[c], []).append(c)
     return Comparison(
-        overall=_delta("overall", [base[c] for c in shared], [cand[c] for c in shared], min_effect),
-        by_task={t: _delta(t, [base[c] for c in cs], [cand[c] for c in cs], min_effect)
+        overall=_delta("overall", [base[c] for c in shared], [cand[c] for c in shared], min_effect, n_boot),
+        by_task={t: _delta(t, [base[c] for c in cs], [cand[c] for c in cs], min_effect, n_boot)
                  for t, cs in sorted(tasks.items())},
         paired_cases=len(shared), unpaired_cases=unpaired, warnings=warnings)
 
