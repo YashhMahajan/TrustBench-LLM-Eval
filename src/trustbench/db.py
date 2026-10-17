@@ -198,7 +198,8 @@ class ProposedCase(Base):
     spec: Mapped[dict] = mapped_column(Json)               # A CaseSpec as a dict.
     source_run_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     source_case_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    method: Mapped[str] = mapped_column(String(100))        # transform:NAME or model_variation
+    method: Mapped[str] = mapped_column(String(100))        # transform:NAME, model_variation or production
+    workspace_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)   # Set for cases from production traces.
     expected_verified: Mapped[bool] = mapped_column(Boolean)  # True when the expected result is known to be right.
     status: Mapped[str] = mapped_column(String(20), default="proposed")  # proposed | approved | rejected
     note: Mapped[str] = mapped_column(Text, default="")

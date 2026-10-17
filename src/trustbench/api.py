@@ -141,6 +141,24 @@ def create_app(factory: sessionmaker | None = None) -> FastAPI:
             raise HTTPException(404, "No such trace.")
         return {"trace_id": trace_id, "feedback": value}
 
+    @app.get("/v1/flagged")
+    def get_flagged(p: Principal = Depends(need("read")), f: sessionmaker = Depends(db), name: str | None = None, limit: int = Query(100, ge=1, le=500)):
+        from .production_tests import flagged_traces
+        return {"flagged": [vars(x) for x in flagged_traces(f, p.workspace_id, name, limit)]}
+
+    @app.post("/v1/traces/{trace_id}/promote", status_code=201)
+    async def post_promote(trace_id: str, request: Request, p: Principal = Depends(need("admin")), f: sessionmaker = Depends(db)):
+        from .production_tests import PromoteError, promote
+        try:
+            body = await request.json() if (await request.body()) else {}
+            prop = promote(f, p.workspace_id, trace_id, body.get("answer"), body.get("dataset"))
+        except PromoteError as e:
+            raise HTTPException(409, str(e))
+        except (ValueError, AttributeError):
+            raise HTTPException(400, 'The body must be JSON like {"answer": "...", "dataset": "..."} or empty.')
+        audit.record(f, p, "trace.promote", trace_id)
+        return {"proposal_id": prop.id, "dataset": prop.dataset_name, "case_id": prop.case_id, "answer_checked": prop.expected_verified}
+
     @app.delete("/v1/traces/{trace_id}", status_code=204)
     def delete_one(trace_id: str, p: Principal = Depends(need("admin")), f: sessionmaker = Depends(db)):
         if not tr.delete_trace(f, p.workspace_id, trace_id):

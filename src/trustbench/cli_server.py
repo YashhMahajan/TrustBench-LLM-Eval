@@ -214,3 +214,90 @@ def drift(
             t.add_row(f.feature, f"[{colour}]{f.level if f.drifted else 'none'}[/{colour}]", stat, "-" if f.p_value is None else f"{f.p_value:.2g}", f.reference, f.current)
         console.print(t)
         console.print("[dim]A change is a signal to look, not proof that quality got worse. New kinds of users can change the traffic.[/dim]")
+
+
+traces_app = typer.Typer(help="Production traces.", no_args_is_help=True)
+app.add_typer(traces_app, name="traces")
+
+
+def _workspace(factory, name):
+    try:
+        return tenancy.get_workspace(factory, name)
+    except tenancy.TenancyError as e:
+        _fail(e)
+
+
+@traces_app.command("list")
+def traces_list(workspace: str = typer.Argument("default"), status: str = typer.Option(None), name: str = typer.Option(None), limit: int = 20):
+    from .traces import list_traces
+    factory = get_factory()
+    ws = _workspace(factory, workspace)
+    t = Table()
+    for col in ["Trace", "Name", "When (UTC)", "Status", "Model", "Latency", "Cost", "Feedback", "Check"]:
+        t.add_column(col)
+    for r in list_traces(factory, ws.id, status=status, name=name, limit=limit):
+        t.add_row(r.trace_id[:16], r.name, r.started_at.strftime("%m-%d %H:%M"), "[red]error[/red]" if r.status == "error" else "ok", r.model or "-",
+                  f"{r.duration_ms:.0f} ms", "-" if r.cost_usd is None else f"${r.cost_usd:.4f}", "-" if r.feedback is None else f"{r.feedback:+d}", r.eval_state)
+    console.print(t)
+
+
+@traces_app.command("show")
+def traces_show(trace_id: str, workspace: str = typer.Option("default"), reveal: bool = typer.Option(False, "--reveal", help="Print the stored text (needs the encryption key)")):
+    from . import audit
+    from .online import trace_evaluations
+    from .traces import get_trace, reveal as reveal_text
+    factory = get_factory()
+    ws = _workspace(factory, workspace)
+    found = get_trace(factory, ws.id, trace_id)
+    if not found:
+        _fail("No such trace.")
+    row, spans = found
+    console.print(f"[bold]{row.trace_id}[/bold] {row.name}  {row.status}  {row.duration_ms:.0f} ms  model {row.model or '-'}  feedback {row.feedback}")
+    console.print(f"Input {row.input_chars} chars, output {row.output_chars} chars, removed from text: {row.redactions or 'nothing'}, expires {row.expires_at:%Y-%m-%d}")
+    for sp in spans:
+        console.print(f"  {'  ' if sp.parent_id else ''}- {sp.kind}:{sp.name} +{sp.offset_ms:.0f} ms for {sp.duration_ms:.0f} ms {sp.status} {sp.attrs or ''}")
+    for e in trace_evaluations(factory, ws.id, row.id):
+        console.print(f"  check {e.evaluator} ({e.kind}): {'pass' if e.passed else 'FAIL'} - {e.rationale}")
+    if reveal:
+        try:
+            for k, v in reveal_text(row).items():
+                console.print(f"[bold]{k}:[/bold] {v}")
+        except (crypto.SecretKeyMissing, crypto.DecryptionError) as e:
+            _fail(e)
+
+
+@traces_app.command("flagged")
+def traces_flagged(workspace: str = typer.Argument("default"), name: str = typer.Option(None)):
+    """Traces that went wrong: an error, a bad rating or a failed online check."""
+    from .production_tests import flagged_traces
+    factory = get_factory()
+    ws = _workspace(factory, workspace)
+    t = Table(title="Flagged traces")
+    for col in ["Trace", "Feature", "Why", "Text stored"]:
+        t.add_column(col)
+    for f in flagged_traces(factory, ws.id, name):
+        t.add_row(f.trace_id, f.name, ", ".join(f.reasons), "yes" if f.has_content else "no")
+    console.print(t)
+    console.print("Turn one into a test: trustbench traces promote TRACE_ID")
+
+
+@traces_app.command("promote")
+def traces_promote(trace_id: str, workspace: str = typer.Option("default"), answer: str = typer.Option(None, help="The right answer, if you know it"),
+                   dataset: str = typer.Option(None, help="Dataset name. Default: FEATURE-production")):
+    """Propose a regression test from a production trace. A person must approve it in 'trustbench proposals'."""
+    from .production_tests import PromoteError, promote
+    factory = get_factory()
+    ws = _workspace(factory, workspace)
+    try:
+        p = promote(factory, ws.id, trace_id, answer, dataset)
+    except PromoteError as e:
+        _fail(e)
+    console.print(f"Proposed test {p.id} in dataset '{p.dataset_name}' ({'answer checked by rule or by you' if p.expected_verified else 'a judge model decided this is a failure: check it'}).")
+    console.print(f"Review: trustbench proposals show {p.id}   Approve: trustbench proposals approve {p.id}" + ("" if p.expected_verified else " --checked-answers"))
+
+
+@traces_app.command("purge")
+def traces_purge():
+    """Delete all traces that are past their retention time."""
+    from .traces import purge_expired
+    console.print(f"Deleted {purge_expired(get_factory())} expired trace(s).")
