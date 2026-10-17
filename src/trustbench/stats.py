@@ -63,3 +63,41 @@ def mcnemar_exact(a_only: int, b_only: int, alternative: str = "two-sided") -> f
     if alternative == "b_better":
         return binomial_tail(n, b_only)
     return min(1.0, 2 * binomial_tail(n, max(a_only, b_only)))
+
+
+def paired_diffs(a, b) -> list[float]:
+    """b minus a for each case. a and b are scores for the same cases in the same order."""
+    if len(a) != len(b):
+        raise ValueError("Paired scores need the same number of cases.")
+    return [y - x for x, y in zip(a, b)]
+
+
+def paired_bootstrap(a, b, n_boot: int = 4000, alpha: float = 0.05, seed: int = 0):
+    """Mean difference (b minus a) and its interval. Whole cases are resampled, so the pairing stays."""
+    d = paired_diffs(a, b)
+    if not d:
+        return None
+    return mean(d), *bootstrap_ci(d, n_boot=n_boot, alpha=alpha, seed=seed)
+
+
+def paired_permutation_p(a, b, alternative: str = "two-sided", n_perm: int = 10000, seed: int = 0) -> float:
+    """Sign-flip test. If A and B were equal, each difference could have either sign.
+
+    alternative: 'two-sided', 'b_worse' or 'b_better'.
+    """
+    d = paired_diffs(a, b)
+    nonzero = [x for x in d if x != 0]
+    if not nonzero:
+        return 1.0
+    observed = sum(nonzero)
+    rng = random.Random(seed)
+    extreme = 0
+    for _ in range(n_perm):
+        s = sum(x if rng.random() < 0.5 else -x for x in nonzero)
+        if alternative == "b_worse":
+            extreme += s <= observed
+        elif alternative == "b_better":
+            extreme += s >= observed
+        else:
+            extreme += abs(s) >= abs(observed)
+    return (extreme + 1) / (n_perm + 1)

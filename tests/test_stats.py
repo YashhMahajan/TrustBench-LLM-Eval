@@ -73,3 +73,39 @@ def test_mcnemar_false_alarm_rate_is_at_most_5_percent():
             b_only += b and not a
         alarms += mcnemar_exact(a_only, b_only) < 0.05
     assert alarms / 2000 <= 0.06
+
+
+def test_paired_bootstrap_difference():
+    from trustbench.stats import paired_bootstrap
+    a = [1] * 70 + [0] * 30
+    b = [1] * 70 + [0] * 20 + [1] * 10   # B fixes 10 cases and breaks none.
+    diff, lo, hi = paired_bootstrap(a, b)
+    assert diff == pytest.approx(0.10) and 0 < lo < diff < hi < 0.2
+    assert paired_bootstrap([], []) is None
+
+
+def test_pairing_gives_a_tighter_interval_than_ignoring_it():
+    from trustbench.stats import paired_bootstrap
+    rng = random.Random(3)
+    base = [1 if rng.random() < 0.6 else 0 for _ in range(200)]
+    better = [1 if (x or rng.random() < 0.05) else 0 for x in base]  # B is A plus a few fixes.
+    _, lo, hi = paired_bootstrap(base, better)
+    assert lo > 0  # The small gain is clear because the same cases are compared.
+
+
+def test_paired_scores_must_match_in_length():
+    from trustbench.stats import paired_diffs
+    with pytest.raises(ValueError):
+        paired_diffs([1], [1, 0])
+
+
+def test_permutation_test_detects_a_clear_gap_and_ignores_noise():
+    from trustbench.stats import paired_permutation_p
+    a = [0.0] * 40
+    b = [1.0] * 15 + [0.0] * 25
+    assert paired_permutation_p(a, b) < 0.001
+    assert paired_permutation_p(a, b, "b_worse") > 0.99
+    assert paired_permutation_p(a, b, "b_better") < 0.001
+    assert paired_permutation_p([1, 0, 1, 0], [1, 0, 1, 0]) == 1.0
+    mixed_a, mixed_b = [1, 0] * 20, [0, 1] * 20
+    assert paired_permutation_p(mixed_a, mixed_b) > 0.5
