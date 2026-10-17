@@ -329,3 +329,124 @@ def robustness_report_cmd(run_id: str, model: str = typer.Option(None)):
         console.print("Cases that broke: " + "; ".join(f"{c} ({', '.join(ts)})" for c, ts in list(r.fragile_cases.items())[:10]))
     for w in r.warnings:
         console.print(f"[yellow]{w}[/yellow]")
+
+
+prop_app = typer.Typer(help="New test cases proposed from failures. A person reviews them.", no_args_is_help=True)
+app.add_typer(prop_app, name="proposals")
+
+
+@prop_app.command("generate")
+def proposals_generate(
+    run_id: str,
+    model: str = typer.Option(None, help="Model whose failures to use, if the run has several"),
+    judge: str = typer.Option(None, help="provider:model that also writes new questions. Their answers are not verified."),
+    per_case: int = typer.Option(2, help="Proposals for each failed case"),
+):
+    """Propose new test cases based on the failed cases of a run."""
+    import asyncio
+
+    from .adversary import propose_from_failures
+    from .engine import make_judge
+    from .providers import get_provider
+
+    try:
+        rep = asyncio.run(propose_from_failures(get_factory(), run_id, model, make_judge(judge, get_provider), per_case))
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    console.print(f"{rep.failing_cases} failed case(s). {rep.created} proposal(s) created.")
+    for reason, n in sorted(rep.skipped.items()):
+        console.print(f"  skipped {n}: {reason}")
+    if rep.created:
+        console.print("Review them with: trustbench proposals list")
+
+
+@prop_app.command("list")
+def proposals_list(status: str = typer.Option("proposed", help="proposed, approved, rejected or all"),
+                   dataset: str = typer.Option(None)):
+    from . import proposals
+    from .datasets import render_prompt
+
+    rows = proposals.list_proposals(get_factory(), None if status == "all" else status, dataset)
+    t = Table(title=f"{len(rows)} proposal(s)")
+    for col in ["Id", "Status", "From", "Method", "Answer checked", "Input"]:
+        t.add_column(col)
+    for p in rows:
+        text = render_prompt(p.spec["input"]).replace("\n", " ")
+        t.add_row(str(p.id), p.status, p.source_case_id or "-", p.method, "yes" if p.expected_verified else "[yellow]no[/yellow]",
+                  text[:70] + ("..." if len(text) > 70 else ""))
+    console.print(t)
+
+
+@prop_app.command("show")
+def proposals_show(proposal_id: int):
+    from . import proposals
+
+    p = next((x for x in proposals.list_proposals(get_factory()) if x.id == proposal_id), None)
+    if p is None:
+        console.print(f"[red]No proposal {proposal_id}.[/red]")
+        raise typer.Exit(1)
+    console.print(f"[bold]{p.case_id}[/bold]  {p.status}  from {p.source_case_id}  by {p.method}")
+    console.print(f"Input: {p.spec['input']}")
+    console.print(f"Expected: {p.spec['expected']}  ({'checked' if p.expected_verified else 'NOT checked: a model wrote it'})")
+    console.print(f"Evaluators: {p.spec['evaluation']}")
+
+
+@prop_app.command("approve")
+def proposals_approve(ids: list[int], checked_answers: bool = typer.Option(False, "--checked-answers",
+                      help="I checked the answers that a model wrote"), note: str = typer.Option("")):
+    from . import proposals
+
+    try:
+        n = proposals.approve(get_factory(), ids, checked_answers, note)
+    except proposals.ReviewError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    console.print(f"Approved {n}.")
+
+
+@prop_app.command("reject")
+def proposals_reject(ids: list[int], note: str = typer.Option("")):
+    from . import proposals
+
+    try:
+        n = proposals.reject(get_factory(), ids, note)
+    except proposals.ReviewError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    console.print(f"Rejected {n}.")
+
+
+@prop_app.command("edit")
+def proposals_edit(proposal_id: int, answer: str = typer.Option(..., help="The right answer")):
+    """Correct the answer of a proposal. Then it counts as checked."""
+    from . import proposals
+
+    try:
+        proposals.edit_answer(get_factory(), proposal_id, answer)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    console.print("Updated. The answer now counts as checked.")
+
+
+@prop_app.command("export")
+def proposals_export(dataset: str, out: Path = typer.Option(None, help="File to write. Default: DATASET_regression.jsonl"),
+                     with_base: bool = typer.Option(True, "--with-base/--only-new", help="Include the cases of the original dataset")):
+    """Write the approved cases as a dataset file. Run it to check that old failures stay fixed."""
+    from . import proposals
+    from .datasets import DatasetError, load_cases, resolve_path
+
+    base = None
+    if with_base:
+        try:
+            base = load_cases(resolve_path(dataset))
+        except DatasetError:
+            console.print(f"[yellow]The original dataset '{dataset}' was not found. Writing the approved cases only.[/yellow]")
+    out = out or Path(f"{dataset}_regression.jsonl")
+    try:
+        n, version = proposals.export_approved(get_factory(), dataset, out, base)
+    except (proposals.ReviewError, ValueError) as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    console.print(f"Wrote {out} with {n} approved case(s) (dataset version {version}). Run it with: trustbench run --dataset {out}")
