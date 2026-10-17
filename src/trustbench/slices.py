@@ -11,6 +11,8 @@ from .scorecard import Score, rate_score
 from .stats import benjamini_hochberg, fisher_exact_less, mean, two_group_permutation_p
 
 MIN_SLICE = 5   # Smaller slices are listed but not tested.
+# Metadata that names one case or one origin is not a property that a group of cases shares.
+NOT_SLICES = {"critical", "requires_judge", "source_case", "trace_id", "generated", "source", "origin", "promoted_by"}
 
 
 def length_bucket(words: int) -> str:
@@ -31,7 +33,7 @@ class Slice:
 def slice_keys(rec: Record) -> list[tuple[str, str]]:
     keys = [("task", rec.task), ("input length", length_bucket(rec.input_words))]
     keys += [(k, str(v)) for k, v in sorted(rec.metadata.items())
-             if isinstance(v, (str, bool, int)) and k not in ("critical", "requires_judge")]
+             if isinstance(v, (str, bool, int)) and k not in NOT_SLICES]
     return keys
 
 
