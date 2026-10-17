@@ -184,6 +184,26 @@ class ReleaseDecision(Base):
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
 
 
+class ProposedCase(Base):
+    """A test case that a generator suggests. It joins a dataset only after a person approves it."""
+
+    __tablename__ = "proposed_cases"
+    __table_args__ = (UniqueConstraint("dataset_name", "case_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dataset_name: Mapped[str] = mapped_column(String(200), index=True)
+    case_id: Mapped[str] = mapped_column(String(200))
+    spec: Mapped[dict] = mapped_column(Json)               # A CaseSpec as a dict.
+    source_run_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    source_case_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    method: Mapped[str] = mapped_column(String(100))        # transform:NAME or model_variation
+    expected_verified: Mapped[bool] = mapped_column(Boolean)  # True when the expected result is known to be right.
+    status: Mapped[str] = mapped_column(String(20), default="proposed")  # proposed | approved | rejected
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
+    reviewed_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)
+
+
 def make_engine(url: str) -> Engine:
     if url.startswith("sqlite") and (":memory:" in url or url.endswith("//")):
         return create_engine(
