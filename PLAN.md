@@ -65,14 +65,15 @@ Phase 6 modules: api_data (read routes), demo (made-up data), dashboard/ (Next.j
 
 Phase 5 modules: tenancy, redact, crypto, dataprotect, audit, traces, api, sdk, jobs, handlers, online, drift, production_tests, monitor, cli_server. Tables added: workspaces, api_keys, audit_log, production_traces, trace_spans, trace_evaluations, jobs.
 
-Open items before the first release:
-- Tables are created with `create_all`. Add Alembic migrations (a column change needs one).
-- Runs, datasets and baselines are scoped by workspace since Phase 6. Names of baselines are still global.
-- The server has no TLS, rate limit or key expiry.
-- Postgres, a real Redis server and live model APIs are not tested yet (no services on the development machine).
-- A Dockerfile and compose services for the API and the worker.
+Phase 7 modules: selftest/ (checks_stats, checks_eval, checks_system), migrate + migrations/, ratelimit, report_export, Dockerfiles.
 
-Older note: tables are created with `create_all`. A change to a table needs a migration tool (Alembic). We add it before the first release.
+Open items (what is not done or not verified):
+- Not run against a real PostgreSQL server, a real Redis server, or live model APIs (no services on the development machine). Postgres is checked as far as the generated SQL.
+- The Docker images were not built. The compose file passes `docker compose config`.
+- The dashboard has no page for judge validation (Evaluators) and no page for reports. The report export exists as a file and an API route.
+- The server has no TLS (use a proxy). Rate limits are per process. Baseline names are global across workspaces.
+- Redaction is pattern based.
+- Distributed workers are tested with one process and a simulated crash, not with many machines.
 
 Invariants (we enforce them in code and tests):
 1. A dataset version never changes. A change makes a new version.
@@ -132,7 +133,7 @@ Pages: Overview, Experiments, Benchmarks, Models, Evaluators, Reliability Lab, F
 - Each score shows its CI and sample size.
 - Dark observability style.
 
-### Phase 7 — Validation suite (section 21)
+### Phase 7 — Validation suite (section 21) (DONE: trustbench selftest with 27 checks, each tested against deliberate breakage; plus migrations, key expiry, rate limits, run report export, Docker files)
 - Synthetic data with known differences. Check CI coverage by simulation.
 - Inject known regressions. Check that the gate finds them.
 - Inject duplicates and bad labels. Check that the quality checks find them.

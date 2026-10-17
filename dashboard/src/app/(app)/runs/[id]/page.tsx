@@ -42,6 +42,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           {run.status !== "complete" && <Stamp status="incomplete" />}
           {models.length > 1 && <Segmented current={model} items={models.map((m) => ({ id: m, label: m.replace("demo:", ""), href: q({ model: m }) }))} />}
           <Link href={`/regression?candidate=${id}`} className="btn btn--sm">Compare</Link>
+          <a href={`/runs/${id}/report${models.length > 1 ? `?model=${encodeURIComponent(model)}` : ""}`} className="btn btn--sm" download>Download report</a>
         </div>}
       />
       <Tabs current={tab} items={[

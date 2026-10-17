@@ -4,7 +4,7 @@ TrustBench tests LLMs. You set an API key. TrustBench does the rest.
 
 ## Start
 
-1. Start the database: `docker compose up -d`
+1. Start the database: `docker compose up -d postgres` (or everything: see “Run everything with Docker”)
 2. Install: `pip install -e .`
 3. Set a key: `export ANTHROPIC_API_KEY=...` (or `OPENAI_API_KEY`, `GEMINI_API_KEY`)
 4. Run: `trustbench run`
@@ -45,6 +45,10 @@ No key? Try the demo: `trustbench run --model mock:smoke`
 | `trustbench traces list / show / flagged / promote / purge` | Production traces and their conversion to tests |
 | `trustbench jobs status / dead / retry` | The task queue |
 | `trustbench secrets generate-key` | Encryption key for stored content |
+| `trustbench selftest` | Check that TrustBench measures correctly |
+| `trustbench export RUN_ID` | A report of a run to send to someone |
+| `trustbench db status / check / upgrade / sql` | Database versions |
+| `trustbench key create --expires-days N` | A key that stops working after N days |
 
 ## Decide if a model is ready
 
@@ -176,9 +180,45 @@ Tasks wait in the database by default. For many workers on a busy queue set `TRU
 ### Limits
 
 - Redaction finds patterns (emails, numbers, secrets). It does not find names or addresses in free text.
-- The server has no TLS, rate limit or key expiry. Put it behind a proxy.
+- The server has no TLS. Put it behind a proxy. Rate limits and the lock after wrong keys are counted in one server process: with several API processes, each counts for itself.
 - The Redis queue is tested against an in-memory copy of the Redis commands it uses, not against a Redis server.
-- Runs and datasets from `trustbench run` are not split by workspace yet. The API serves production data only.
+- PostgreSQL is tested only as far as the generated SQL (every table, index and key query compiles for PostgreSQL). It was not run against a PostgreSQL server.
+- The Docker files were written and the compose file was validated, but the images were not built here.
+
+## Check that TrustBench itself is right
+
+A reliability tool must show that its own numbers are valid. `trustbench selftest` builds data where the truth is known and runs the real code on it:
+
+- a 95% interval contains the truth about 95% of the time, also for small samples and extreme cases
+- two equal systems are rarely called different. A real drop is found. False discoveries stay under control
+- every evaluator agrees with a gold set. Planted personal data is removed. Ordinary text is not damaged
+- each kind of injected failure (invalid JSON, a faulty prompt, a wrong reference, lost evidence, abstention) is named, blamed on the right stage and never allowed through the gate
+- test copies never change the right answer. Planted dataset defects are found
+- the rules that make results auditable hold. Workspaces cannot read each other. Retention is exact. No task is lost when a worker dies
+
+The targets are fixed from theory before the numbers are seen. The checks are themselves tested by breaking the code on purpose: each check must fail when the code it watches is wrong. The self-test has already found two real flaws, which are fixed: PSI drift was too high on small samples, and a bootstrap interval claimed certainty when 8 of 8 cases moved the same way.
+
+```bash
+trustbench selftest            # about 2 seconds. Add --quick for fewer simulations, --area statistics for one area, --json for a machine
+```
+
+## Database versions
+
+The tables are versioned with Alembic. Commands that open a real database create it or upgrade it. Check the state with `trustbench db status`, see differences with `trustbench db check`, and give a database administrator the PostgreSQL SQL with `trustbench db sql`. A database that is newer than the program is refused. Changing a model needs a new file in `src/trustbench/migrations/versions/`: a test fails if you forget.
+
+## Run everything with Docker
+
+```bash
+cp .env.example .env                 # set POSTGRES_PASSWORD and TRUSTBENCH_SECRET_KEY
+docker compose up -d                 # database, API, worker and dashboard
+docker compose exec api trustbench demo      # optional: sample data and a key
+```
+
+Open http://localhost:3000. The ports are open on your machine only. For many workers add `--profile scale` and set `TRUSTBENCH_REDIS_URL`.
+
+## Share a run
+
+`trustbench export RUN_ID` writes a report that someone who was not there can read: the numbers with their intervals, how cases failed, release decisions, and how to repeat the run. The dashboard has the same under “Download report”. Add `--format json` for a machine.
 
 ## Built-in suites
 

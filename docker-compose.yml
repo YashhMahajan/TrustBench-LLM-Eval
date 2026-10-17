@@ -1,15 +1,64 @@
-# Users start the database with: docker compose up -d
+# Everything in containers:    docker compose up -d
+# Only the database:           docker compose up -d postgres
+# With Redis for many workers: docker compose --profile scale up -d
+#
+# Set a secret in a file called .env (see .env.example) before you use this for real work.
+# Ports are open on this machine only. Put a proxy with TLS in front of the API and the dashboard to share them.
+
 services:
   postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: trustbench
-      POSTGRES_PASSWORD: trustbench
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-trustbench}
       POSTGRES_DB: trustbench
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trustbench"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["scale"]
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  api:
+    build: .
+    command: ["trustbench", "serve", "--host", "0.0.0.0", "--port", "8000"]
+    environment: &app-env
+      TRUSTBENCH_DATABASE_URL: postgresql+psycopg://trustbench:${POSTGRES_PASSWORD:-trustbench}@postgres:5432/trustbench
+      TRUSTBENCH_SECRET_KEY: ${TRUSTBENCH_SECRET_KEY:-}
+      TRUSTBENCH_REDIS_URL: ${TRUSTBENCH_REDIS_URL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  worker:
+    build: .
+    command: ["trustbench", "worker"]
+    environment: *app-env
+    depends_on:
+      - api
+
+  dashboard:
+    build: ./dashboard
+    environment:
+      TRUSTBENCH_API_URL: http://api:8000
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:3000:3000"
 
 volumes:
   pgdata:
