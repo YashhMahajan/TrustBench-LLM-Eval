@@ -109,3 +109,23 @@ def test_permutation_test_detects_a_clear_gap_and_ignores_noise():
     assert paired_permutation_p([1, 0, 1, 0], [1, 0, 1, 0]) == 1.0
     mixed_a, mixed_b = [1, 0] * 20, [0, 1] * 20
     assert paired_permutation_p(mixed_a, mixed_b) > 0.5
+
+
+@pytest.mark.parametrize("ci,expected", [
+    ((0.03, 0.08), "meaningful_improvement"),
+    ((0.002, 0.05), "improvement_below_threshold"),
+    ((-0.04, 0.05), "inconclusive"),
+    ((-0.004, 0.006), "equivalent"),
+    ((-0.08, -0.02), "meaningful_regression"),
+    ((-0.05, -0.003), "regression_below_threshold"),
+    ((-0.001, 0.008), "equivalent"),
+])
+def test_verdict_from_interval(ci, expected):
+    from trustbench.stats import verdict
+    assert verdict(ci, 0.01) == expected
+
+
+def test_wider_threshold_changes_the_verdict():
+    from trustbench.stats import verdict
+    assert verdict((0.02, 0.04), 0.01) == "meaningful_improvement"
+    assert verdict((0.02, 0.04), 0.05) == "improvement_below_threshold"

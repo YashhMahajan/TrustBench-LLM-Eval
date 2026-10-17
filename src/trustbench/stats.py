@@ -101,3 +101,26 @@ def paired_permutation_p(a, b, alternative: str = "two-sided", n_perm: int = 100
         else:
             extreme += abs(s) >= abs(observed)
     return (extreme + 1) / (n_perm + 1)
+
+
+VERDICTS = ("meaningful_improvement", "improvement_below_threshold", "equivalent",
+            "inconclusive", "regression_below_threshold", "meaningful_regression")
+
+
+def verdict(ci: tuple[float, float], min_effect: float) -> str:
+    """Read a confidence interval for the change (candidate minus baseline).
+
+    min_effect is the smallest change that matters in practice, for example 0.01.
+      meaningful_*          the interval is clear of zero and past min_effect
+      *_below_threshold     the interval is clear of zero but the change may be too small to matter
+      equivalent            the interval is inside +/- min_effect: no change that matters
+      inconclusive          we cannot tell. More cases are needed.
+    """
+    lo, hi = ci
+    if lo > 0:
+        return "meaningful_improvement" if lo >= min_effect else "improvement_below_threshold"
+    if hi < 0:
+        return "meaningful_regression" if hi <= -min_effect else "regression_below_threshold"
+    if lo > -min_effect and hi < min_effect:
+        return "equivalent"
+    return "inconclusive"
