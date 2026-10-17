@@ -2,7 +2,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from . import report
+from . import quality, report
 from .config import database_url, detect_models
 from .datasets import DatasetError, import_dataset, load_cases, resolve_path
 from .db import init_db, make_engine
@@ -62,6 +62,13 @@ def run(
     except DatasetError as e:
         console.print(f"[red]{e}[/red]")
         raise typer.Exit(1)
+    issues = quality.check(cases)
+    errors = [i for i in issues if i.severity == "error"]
+    if errors:
+        console.print(f"[red]The dataset has {len(errors)} error(s).[/red] Run 'trustbench check {dataset}' to see them.")
+        raise typer.Exit(1)
+    if issues:
+        console.print(f"[yellow]{len(issues)} dataset warning(s). Run 'trustbench check {dataset}' to see them.[/yellow]")
     factory = _factory()
     with factory() as s:
         version = import_dataset(s, path.stem, cases)
@@ -105,3 +112,25 @@ def results(run_id: str, failed: bool = typer.Option(False, "--failed", help="Sh
         result = r["status"] if r["passed"] is None else ("pass" if r["passed"] else "fail")
         t.add_row(r["model"], r["case_id"], result, r["error"] or r["rationale"] or "")
     console.print(t)
+
+
+@app.command()
+def check(dataset: str):
+    """Find problems in a dataset: duplicates, conflicts, missing references, personal data."""
+    try:
+        cases = load_cases(resolve_path(dataset))
+    except DatasetError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    issues = quality.check(cases)
+    if not issues:
+        console.print(f"[green]{len(cases)} cases. No problems found.[/green]")
+        return
+    t = Table(title=f"{len(cases)} cases, {len(issues)} issue(s)")
+    for col in ["Severity", "Code", "Cases", "Detail"]:
+        t.add_column(col)
+    for i in issues:
+        t.add_row(i.severity, i.code, ", ".join(i.case_ids) or "-", i.message)
+    console.print(t)
+    if any(i.severity == "error" for i in issues):
+        raise typer.Exit(1)

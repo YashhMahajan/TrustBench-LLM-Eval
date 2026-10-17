@@ -2,11 +2,10 @@
 
 import json
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 
 from .datasets import CaseSpec, render_prompt
-from .evaluators import NEEDS_JUDGE
 
 NEAR_DUPLICATE = 0.85  # Jaccard similarity of word triples.
 
@@ -108,5 +107,52 @@ def check_references(cases: list[CaseSpec]) -> list[Issue]:
     return issues
 
 
+def check_balance(cases: list[CaseSpec]) -> list[Issue]:
+    """Warn when one task or one answer is most of the dataset. Needs 10 cases or more."""
+    if len(cases) < 10:
+        return []
+    issues = []
+    tasks = Counter(c.task for c in cases)
+    task, n = tasks.most_common(1)[0]
+    if len(tasks) > 1 and n / len(cases) > 0.8:
+        issues.append(Issue("warning", "task_imbalance", [], f"{n / len(cases):.0%} of cases are task '{task}'."))
+    answers = Counter(str(c.expected["answer"]).lower() for c in cases if "answer" in c.expected)
+    if len(answers) >= 2 and sum(answers.values()) >= 10 and len(answers) <= 5:
+        answer, n = answers.most_common(1)[0]
+        if n / sum(answers.values()) > 0.8:
+            issues.append(Issue("warning", "answer_imbalance", [],
+                                f"{n / sum(answers.values()):.0%} of answers are '{answer}'. "
+                                "A model that always says this scores high."))
+    return issues
+
+
+PII_PATTERNS = {
+    "email address": re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b"),
+    "US social security number": re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
+    "phone number": re.compile(r"(?<!\d)(?:\+\d{1,3}[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}(?!\d)"),
+}
+CARD = re.compile(r"(?<!\d)(?:\d[ -]?){13,19}(?!\d)")
+
+
+def _luhn(number: str) -> bool:
+    digits = [int(d) for d in number][::-1]
+    total = sum(d if i % 2 == 0 else (d * 2 - 9 if d * 2 > 9 else d * 2) for i, d in enumerate(digits))
+    return total % 10 == 0
+
+
+def check_pii(cases: list[CaseSpec]) -> list[Issue]:
+    """Find personal data. The message names the type. It never repeats the value."""
+    issues = []
+    for c in cases:
+        text = json.dumps([c.input, c.expected], ensure_ascii=False)
+        found = {name for name, p in PII_PATTERNS.items() if p.search(text)}
+        if any(_luhn(re.sub(r"\D", "", m)) for m in CARD.findall(text) if 13 <= len(re.sub(r"\D", "", m)) <= 19):
+            found.add("payment card number")
+        for name in sorted(found):
+            issues.append(Issue("warning", "possible_pii", [c.id], f"Possible {name}."))
+    return issues
+
+
 def check(cases: list[CaseSpec]) -> list[Issue]:
-    return check_references(cases) + check_duplicates_and_conflicts(cases)
+    return (check_references(cases) + check_duplicates_and_conflicts(cases)
+            + check_balance(cases) + check_pii(cases))

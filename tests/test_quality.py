@@ -49,3 +49,29 @@ def test_missing_references_per_evaluator():
 def test_judge_without_reference_is_a_warning():
     issues = check_references([case("a", "q", expected={}, evaluation={"evaluators": [{"type": "llm_judge"}]})])
     assert [(i.code, i.severity) for i in issues] == [("judge_without_reference", "warning")]
+
+
+def test_imbalance_needs_enough_cases_and_a_dominant_value():
+    from trustbench.quality import check_balance
+    yes = [case(f"y{i}", f"question number {i} about topic alpha", expected={"answer": "yes"}) for i in range(9)]
+    no = [case("n", "a different question about topic beta", expected={"answer": "no"})]
+    assert codes(check_balance(yes + no)) == ["answer_imbalance"]
+    assert check_balance((yes + no)[:5]) == []
+    mixed = [case(f"m{i}", f"unique question {i}", expected={"answer": "yes" if i % 2 else "no"}) for i in range(10)]
+    assert check_balance(mixed) == []
+
+
+def test_pii_is_found_and_never_repeated():
+    from trustbench.quality import check_pii
+    cases = [
+        case("a", "Write to ana@example.com now"),
+        case("b", "Call 415-555-0134 today"),
+        case("c", "SSN 123-45-6789"),
+        case("d", "Card 4111 1111 1111 1111 expires soon"),
+        case("e", "Order number 1234 5678 9012 3456 was late"),  # Fails the Luhn check.
+        case("f", "No personal data here"),
+    ]
+    issues = check_pii(cases)
+    assert sorted((i.case_ids[0], i.message) for i in issues) == [
+        ("a", "Possible email address."), ("b", "Possible phone number."),
+        ("c", "Possible US social security number."), ("d", "Possible payment card number.")]

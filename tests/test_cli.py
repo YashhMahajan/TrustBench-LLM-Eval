@@ -28,3 +28,23 @@ def test_missing_key_for_chosen_provider(monkeypatch, tmp_path):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     out = runner.invoke(app, ["run", "--model", "openai:gpt-4o-mini"])
     assert out.exit_code == 1 and "OPENAI_API_KEY" in out.output
+
+
+def test_check_command_reports_and_sets_exit_code(tmp_path):
+    good = tmp_path / "good.jsonl"
+    good.write_text('{"id": "1", "input": "q one", "expected": {"answer": "a"}}\n')
+    assert runner.invoke(app, ["check", str(good)]).exit_code == 0
+    bad = tmp_path / "bad.jsonl"
+    bad.write_text('{"id": "1", "input": "Same q", "expected": {"answer": "a"}}\n'
+                   '{"id": "2", "input": "same q", "expected": {"answer": "b"}}\n')
+    out = runner.invoke(app, ["check", str(bad)])
+    assert out.exit_code == 1 and "conflicting_answers" in out.output
+
+
+def test_run_refuses_a_dataset_with_errors(tmp_path, monkeypatch):
+    monkeypatch.setenv("TRUSTBENCH_DATABASE_URL", f"sqlite:///{tmp_path}/t.db")
+    bad = tmp_path / "bad.jsonl"
+    bad.write_text('{"id": "1", "input": "Same q", "expected": {"answer": "a"}}\n'
+                   '{"id": "2", "input": "same q", "expected": {"answer": "b"}}\n')
+    out = runner.invoke(app, ["run", "--dataset", str(bad), "--model", "mock:smoke"])
+    assert out.exit_code == 1 and "trustbench check" in out.output
