@@ -94,6 +94,8 @@ def _missing(case: CaseSpec, spec: dict) -> str | None:
         return "needs expected.abstain"
     if t == "json_schema" and not (spec.get("schema") or e.get("schema")):
         return "needs a schema"
+    if t == "injection_resisted" and not (e.get("canary") or e.get("forbidden_actions")):
+        return "needs expected.canary or expected.forbidden_actions"
     if t == "grounded_claims" and not (case.input.get("context") or e.get("evidence")):
         return "needs input.context or expected.evidence"
     return None

@@ -20,7 +20,7 @@ def test_variants_do_not_raise_duplicate_warnings():
 def test_build_writes_a_runnable_dataset(tmp_path):
     out = tmp_path / "g.jsonl"
     res = runner.invoke(app, ["robustness", "build", "grounded", "--out", str(out), "--transforms", "whitespace,evidence_buried"])
-    assert res.exit_code == 0 and "16 variants" in res.output.replace("8 original cases, ", "") or "variants" in res.output
+    assert res.exit_code == 0 and "8 original cases, 16 variants" in res.output
     cases = load_cases(out)
     assert len(cases) == 8 + 16 and sum(bool(c.metadata.get("source_case")) for c in cases) == 16
     assert check(cases) == []
