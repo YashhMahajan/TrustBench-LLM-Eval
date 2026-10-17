@@ -3,18 +3,15 @@ from rich.table import Table
 
 from pathlib import Path
 
-from . import annotations, quality, report
-from .judge_validation import validate_judge
 from .cli_common import console, get_factory
 from .config import detect_models
-from .datasets import DatasetError, import_dataset, load_cases, resolve_path
-from .engine import RunOptions, rescore, run_eval
 
 app = typer.Typer(help="TrustBench: evaluate LLMs. Set an API key and run.", no_args_is_help=True)
 _factory = get_factory
 
 
 def _show(factory, run_id: str, batch: int | None = None) -> None:
+    from . import report
     rows = report.case_rows(factory, run_id, batch)
     t = Table(title=f"Run {run_id}")
     for col in ["Model", "Cases", "Scored", "Passed", "Pass rate", "Call failures", "Skipped", "Mean latency", "Cost"]:
@@ -44,6 +41,13 @@ def run(
     judge: str = typer.Option(None, help="provider:model that grades open answers"),
 ):
     """Run a dataset against your models. Without --model, use every API key found."""
+    from .datasets import DatasetError
+    from .engine import RunOptions
+    from .datasets import import_dataset
+    from .datasets import load_cases
+    from . import quality
+    from .datasets import resolve_path
+    from .engine import run_eval
     specs = model or detect_models()
     if not specs:
         console.print("[red]No model found.[/red] Set ANTHROPIC_API_KEY, OPENAI_API_KEY or GEMINI_API_KEY, "
@@ -83,6 +87,7 @@ def run(
 @app.command("rescore")
 def rescore_cmd(run_id: str, judge: str = typer.Option(None, help="provider:model that grades open answers")):
     """Score the stored outputs of a run again. No model calls."""
+    from .engine import rescore
     factory = _factory()
     try:
         batch = rescore(factory, run_id, judge)
@@ -97,6 +102,7 @@ def rescore_cmd(run_id: str, judge: str = typer.Option(None, help="provider:mode
 @app.command()
 def results(run_id: str, failed: bool = typer.Option(False, "--failed", help="Show failures only")):
     """Show the result of each case."""
+    from . import report
     factory = _factory()
     _show(factory, run_id)
     t = Table()
@@ -113,6 +119,10 @@ def results(run_id: str, failed: bool = typer.Option(False, "--failed", help="Sh
 @app.command()
 def check(dataset: str):
     """Find problems in a dataset: duplicates, conflicts, missing references, personal data."""
+    from .datasets import DatasetError
+    from .datasets import load_cases
+    from . import quality
+    from .datasets import resolve_path
     try:
         cases = load_cases(resolve_path(dataset))
     except DatasetError as e:
@@ -139,6 +149,7 @@ app.add_typer(notes, name="annotations")
 @notes.command("export")
 def annotations_export(run_id: str, out: Path = typer.Option(Path("annotations.csv"), help="CSV file to write")):
     """Write a CSV with every answer. Fill in the label column, then import it."""
+    from . import annotations
     count = annotations.export_template(_factory(), run_id, out)
     console.print(f"Wrote {count} answers to {out}. Fill in the 'label' column.")
 
@@ -150,6 +161,7 @@ def annotations_import(
     dimension: str = typer.Option("correctness", help="What the label measures"),
 ):
     """Store the labels from a CSV."""
+    from . import annotations
     try:
         stored, skipped = annotations.import_annotations(_factory(), file, annotator, dimension)
     except annotations.AnnotationError as e:
@@ -161,6 +173,7 @@ def annotations_import(
 @app.command("validate-judge")
 def validate_judge_cmd(run_id: str, dimension: str = typer.Option("correctness", help="Label dimension to compare")):
     """Compare the judge grades of a run with human labels."""
+    from .judge_validation import validate_judge
     v = validate_judge(_factory(), run_id, dimension)
     t = Table(title=f"Judge validation, {v.n} labelled answers")
     t.add_column("Measure")
@@ -190,6 +203,9 @@ def judge_bias_cmd(
     max_cases: int = typer.Option(20, help="Use at most this many cases"),
 ):
     """Test a judge for position bias, length bias and sensitivity to wording."""
+    from .datasets import DatasetError
+    from .datasets import load_cases
+    from .datasets import resolve_path
     import asyncio
 
     from .engine import make_judge
@@ -223,6 +239,7 @@ def judge_bias_cmd(
 @app.command()
 def show(run_id: str, case_id: str):
     """Explain the result of one case: the answer, each score and the reason for it."""
+    from . import report
     details = report.case_detail(_factory(), run_id, case_id)
     if not details:
         console.print(f"[red]No case '{case_id}' in run {run_id}.[/red]")

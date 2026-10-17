@@ -5,6 +5,7 @@ different tables. This lets us score old outputs again without a model call.
 """
 
 import datetime as dt
+import os
 
 from sqlalchemy import (
     JSON,
@@ -16,6 +17,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     create_engine,
+    event,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine import Engine
@@ -346,12 +348,26 @@ class TraceEvaluation(Base):
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
 
 
+def _sqlite_settings(dbapi_connection, _record, in_memory: bool) -> None:
+    cur = dbapi_connection.cursor()
+    cur.execute("PRAGMA foreign_keys=ON")           # SQLite does not enforce foreign keys unless asked, so a mistake would pass silently.
+    if not in_memory:
+        cur.execute("PRAGMA journal_mode=WAL")      # Readers and one writer work at the same time. The API and a worker share a file.
+        cur.execute("PRAGMA synchronous=NORMAL")    # Safe with WAL: a crash may lose the last moments, never the database.
+        cur.execute("PRAGMA busy_timeout=5000")     # Wait up to 5 s for the writer, instead of failing at once.
+    cur.close()
+
+
 def make_engine(url: str) -> Engine:
-    if url.startswith("sqlite") and (":memory:" in url or url.endswith("//")):
-        return create_engine(
-            url, poolclass=StaticPool, connect_args={"check_same_thread": False}
-        )
-    return create_engine(url, pool_pre_ping=True)
+    if url.startswith("sqlite"):
+        in_memory = ":memory:" in url or url.rstrip("/").endswith("sqlite:")
+        if in_memory:
+            engine = create_engine(url, poolclass=StaticPool, connect_args={"check_same_thread": False})
+        else:
+            engine = create_engine(url, connect_args={"timeout": 30})
+        event.listen(engine, "connect", lambda c, r: _sqlite_settings(c, r, in_memory))
+        return engine
+    return create_engine(url, pool_pre_ping=True, pool_size=int(os.environ.get("TRUSTBENCH_DB_POOL", "10")), max_overflow=int(os.environ.get("TRUSTBENCH_DB_POOL_OVERFLOW", "20")))
 
 
 def init_db(engine: Engine) -> sessionmaker:

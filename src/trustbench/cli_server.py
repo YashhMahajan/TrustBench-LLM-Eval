@@ -3,10 +3,8 @@
 import typer
 from rich.table import Table
 
-from . import crypto, tenancy
 from .cli import app
 from .cli_common import console, get_factory
-from .dataprotect import PolicyProblem, policy_of, update_policy
 
 ws_app = typer.Typer(help="Workspaces: one for each team or customer.", no_args_is_help=True)
 key_app = typer.Typer(help="API keys for the server.", no_args_is_help=True)
@@ -23,6 +21,7 @@ def _fail(e) -> None:
 
 @ws_app.command("create")
 def workspace_create(name: str):
+    from . import tenancy
     try:
         ws = tenancy.create_workspace(get_factory(), name)
     except tenancy.TenancyError as e:
@@ -33,6 +32,8 @@ def workspace_create(name: str):
 
 @ws_app.command("list")
 def workspace_list():
+    from .dataprotect import policy_of
+    from . import tenancy
     t = Table()
     for col in ["Name", "Id", "Stores content", "Redacts", "Retention", "Sample rate"]:
         t.add_column(col)
@@ -51,6 +52,10 @@ def workspace_set(
     sample_rate: float = typer.Option(None, help="Share of traces for online evaluation, 0 to 1"),
 ):
     """Change the data policy of a workspace. Only the options you give are changed."""
+    from .dataprotect import PolicyProblem
+    from .dataprotect import policy_of
+    from . import tenancy
+    from .dataprotect import update_policy
     factory = get_factory()
     changes = {k: v for k, v in dict(store_content=store_content, redact=redact, retention_days=retention_days, sample_rate=sample_rate).items() if v is not None}
     try:
@@ -68,6 +73,7 @@ def key_create(workspace: str = typer.Option(..., help="Workspace name"), name: 
                role: str = typer.Option("write", help="read, write or admin"),
                expires_days: float = typer.Option(None, "--expires-days", help="The key stops working after this many days")):
     """Make an API key. It is shown once. Copy it now."""
+    from . import tenancy
     factory = get_factory()
     try:
         ws = tenancy.get_workspace(factory, workspace)
@@ -80,6 +86,7 @@ def key_create(workspace: str = typer.Option(..., help="Workspace name"), name: 
 
 @key_app.command("list")
 def key_list(workspace: str = typer.Option(None)):
+    from . import tenancy
     factory = get_factory()
     try:
         ws_id = tenancy.get_workspace(factory, workspace).id if workspace else None
@@ -97,6 +104,7 @@ def key_list(workspace: str = typer.Option(None)):
 
 @key_app.command("revoke")
 def key_revoke(key_id: int):
+    from . import tenancy
     try:
         tenancy.revoke_api_key(get_factory(), key_id)
     except tenancy.TenancyError as e:
@@ -107,6 +115,7 @@ def key_revoke(key_id: int):
 @secrets_app.command("generate-key")
 def secrets_generate():
     """Make an encryption key for stored content. Keep it safe: without it the content cannot be read."""
+    from . import crypto
     console.print(crypto.generate_key())
     console.print("[dim]Set it as TRUSTBENCH_SECRET_KEY. To rotate, put the new key first: NEW,OLD[/dim]")
 
@@ -114,6 +123,7 @@ def secrets_generate():
 @app.command()
 def serve(host: str = typer.Option("127.0.0.1", help="Use 0.0.0.0 only behind a proxy with TLS"), port: int = typer.Option(8000)):
     """Start the HTTP API (traces in, results out). Docs at /docs."""
+    from . import tenancy
     import uvicorn
 
     from .api import create_app
@@ -192,6 +202,7 @@ def drift(
     all_features: bool = typer.Option(False, "--all", help="Also show the features that did not change"),
 ):
     """Has the production traffic or behaviour changed? Compares the recent window with the one before."""
+    from . import tenancy
     from .drift import drift_report
 
     factory = get_factory()
@@ -223,6 +234,7 @@ app.add_typer(traces_app, name="traces")
 
 
 def _workspace(factory, name):
+    from . import tenancy
     try:
         return tenancy.get_workspace(factory, name)
     except tenancy.TenancyError as e:
@@ -245,7 +257,7 @@ def traces_list(workspace: str = typer.Argument("default"), status: str = typer.
 
 @traces_app.command("show")
 def traces_show(trace_id: str, workspace: str = typer.Option("default"), reveal: bool = typer.Option(False, "--reveal", help="Print the stored text (needs the encryption key)")):
-    from . import audit
+    from . import crypto
     from .online import trace_evaluations
     from .traces import get_trace, reveal as reveal_text
     factory = get_factory()
@@ -356,6 +368,7 @@ def monitor(workspace: str = typer.Argument("default"), days: float = typer.Opti
 @app.command()
 def demo(workspace: str = typer.Option("demo", help="Name of the new workspace"), scale: float = typer.Option(1.0, help="Share of the production traces to make. Use 0.2 for a quick demo.")):
     """Fill the database with demo data (no API keys needed) and print a key to open it in the dashboard."""
+    from . import tenancy
     from .demo import make_demo
 
     factory = get_factory()

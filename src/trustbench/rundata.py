@@ -2,6 +2,7 @@
 
 from collections import defaultdict
 from dataclasses import dataclass, field
+from functools import cached_property
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import sessionmaker
@@ -48,12 +49,13 @@ class RunData:
     judge_cost_usd: float
     records: list[Record]
 
-    @property
+    @cached_property
     def models(self) -> list[str]:
         return sorted({r.model for r in self.records})
 
     def for_model(self, model: str | None = None) -> list[Record]:
-        return [r for r in self.records if r.model == self.pick_model(model)]
+        chosen = self.pick_model(model)        # Once. Doing this for every record made it O(n squared).
+        return [r for r in self.records if r.model == chosen]
 
     def pick_model(self, model: str | None = None) -> str:
         if model is None:

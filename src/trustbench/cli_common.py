@@ -2,13 +2,14 @@ import typer
 from rich.console import Console
 
 from .config import database_url
-from .db import make_engine
-from .migrate import MigrationError, open_db
 
 console = Console()
 
 
 def get_factory():
+    from .migrate import MigrationError
+    from .db import make_engine
+    from .migrate import open_db
     try:
         return open_db(make_engine(database_url()))
     except MigrationError as e:

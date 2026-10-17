@@ -5,15 +5,8 @@ from pathlib import Path
 import typer
 from rich.table import Table
 
-from . import baselines
 from .cli import app
 from .cli_common import console, get_factory
-from .comparison import compare_runs
-from .gate import evaluate_gate
-from .operations import operations
-from .policy import TEMPLATE, PolicyError, load_policy
-from .rundata import load_run
-from .slices import regression_scan
 
 VERDICT_TEXT = {
     "meaningful_improvement": "[green]better[/green]",
@@ -41,6 +34,11 @@ def compare(
     slices: bool = typer.Option(False, "--slices", help="Also look for slices that got worse"),
 ):
     """Compare a candidate with a baseline on the same cases."""
+    from . import baselines
+    from .comparison import compare_runs
+    from .rundata import load_run
+    from .operations import operations
+    from .slices import regression_scan
     factory = get_factory()
     try:
         b_id, b_model = baselines.resolve(factory, baseline)
@@ -104,6 +102,11 @@ def gate_check(
     baseline_model: str = typer.Option(None),
 ):
     """Check a run against a policy. Exit code 0 means the release may go on. Exit code 1 means it may not."""
+    from .policy import PolicyError
+    from . import baselines
+    from .gate import evaluate_gate
+    from .policy import load_policy
+    from .rundata import load_run
     factory = get_factory()
     try:
         pol = load_policy(policy)
@@ -139,6 +142,7 @@ app.add_typer(baseline_app, name="baseline")
 @baseline_app.command("set")
 def baseline_set(name: str, run_id: str, model: str = typer.Option(None, help="Model of the run to use")):
     """Use a run as the baseline called NAME. An old baseline with this name is replaced."""
+    from . import baselines
     try:
         baselines.set_baseline(get_factory(), name, run_id, model)
     except ValueError as e:
@@ -149,6 +153,7 @@ def baseline_set(name: str, run_id: str, model: str = typer.Option(None, help="M
 
 @baseline_app.command("list")
 def baseline_list():
+    from . import baselines
     t = Table()
     for col in ["Name", "Run", "Model", "Set at"]:
         t.add_column(col)
@@ -164,6 +169,7 @@ app.add_typer(policy_app, name="policy")
 @policy_app.command("init")
 def policy_init(out: Path = typer.Option(Path("policy.yaml")), force: bool = typer.Option(False, "--force")):
     """Write a policy file with comments. Edit it, then use 'trustbench gate check'."""
+    from .policy import TEMPLATE
     if out.exists() and not force:
         console.print(f"[red]{out} exists.[/red] Use --force to replace it.")
         raise typer.Exit(1)
@@ -178,6 +184,7 @@ def report(
     as_json: bool = typer.Option(False, "--json", help="Print JSON instead of tables"),
 ):
     """Full report of a run: pass rates with intervals, weak slices, latency, cost and more."""
+    from .rundata import load_run
     import json
 
     from .summary import run_summary
@@ -289,6 +296,7 @@ def robustness_list():
 @robust_app.command("report")
 def robustness_report_cmd(run_id: str, model: str = typer.Option(None)):
     """Compare the results on original cases and on their changed copies."""
+    from .rundata import load_run
     from .robustness import robustness_report
 
     try:
@@ -459,6 +467,7 @@ def failures(
     as_json: bool = typer.Option(False, "--json"),
 ):
     """Why did cases fail? Labels, recurring patterns, retrieval stage and what to fix first."""
+    from .rundata import load_run
     import json
 
     from .failure_report import analyze_failures
@@ -513,6 +522,8 @@ def frontier(
     point_estimate: bool = typer.Option(False, "--point-estimate", help="Judge the minimum quality by the pass rate, not the low end of its interval"),
 ):
     """Compare models on quality, cost and latency. Shows which models are worth considering."""
+    from . import baselines
+    from .rundata import load_run
     from .frontier import apply_constraints, candidates_from_runs, pareto
 
     factory = get_factory()

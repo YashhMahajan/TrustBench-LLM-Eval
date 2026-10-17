@@ -18,6 +18,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import sessionmaker
 
 from . import crypto
+from .bulk import insert_many
 from .dataprotect import DataPolicy, policy_of, protect
 from .db import ProductionTrace, TraceSpan, Workspace, utcnow
 from .providers import estimate_cost
@@ -135,6 +136,7 @@ def ingest(factory: sessionmaker, workspace_id: str, traces: list[TraceIn]) -> I
         existing = set(s.scalars(select(ProductionTrace.trace_id).where(
             ProductionTrace.workspace_id == workspace_id, ProductionTrace.trace_id.in_(ids))))
         seen: set[str] = set()
+        built: list[tuple[ProductionTrace, TraceIn, dict]] = []
         for i, t in enumerate(traces):
             if t.trace_id in existing or t.trace_id in seen:
                 result.duplicates += 1
@@ -145,12 +147,19 @@ def ingest(factory: sessionmaker, workspace_id: str, traces: list[TraceIn]) -> I
             except crypto.SecretKeyMissing as e:
                 result.rejected.append((i, str(e)))
                 continue
-            s.add(row)
-            s.flush()
-            for sp in t.spans:
-                s.add(TraceSpan(trace_pk=row.id, workspace_id=workspace_id, span_id=sp.span_id, parent_id=sp.parent_id,
-                                kind=sp.kind, name=sp.name, offset_ms=sp.offset_ms, duration_ms=sp.duration_ms,
-                                status=sp.status, attrs=_clean_scalars(sp.attrs, policy)))
+            built.append((row, t, texts))
+        insert_many(s, ProductionTrace, (row for row, _, _ in built))
+        ids = {}
+        for i in range(0, len(built), 500):
+            chunk = [r.trace_id for r, _, _ in built[i:i + 500]]
+            ids.update(s.execute(select(ProductionTrace.trace_id, ProductionTrace.id).where(
+                ProductionTrace.workspace_id == workspace_id, ProductionTrace.trace_id.in_(chunk))).all())
+        for row, _, _ in built:
+            row.id = ids[row.trace_id]
+        insert_many(s, TraceSpan, (TraceSpan(trace_pk=row.id, workspace_id=workspace_id, span_id=sp.span_id, parent_id=sp.parent_id, kind=sp.kind,
+                                             name=sp.name, offset_ms=sp.offset_ms, duration_ms=sp.duration_ms, status=sp.status,
+                                             attrs=_clean_scalars(sp.attrs, policy)) for row, t, _ in built for sp in t.spans))
+        for row, _, texts in built:
             result.accepted += 1
             if row.sampled:
                 result.sampled.append(row.id)

@@ -55,28 +55,33 @@ def check_duplicates_and_conflicts(cases: list[CaseSpec]) -> list[Issue]:
         else:
             issues.append(Issue("warning", "duplicate", ids, "The same input appears more than once."))
 
-    # Near duplicates. An index on triples limits the pairs we compare.
+    # Near duplicates. We look for candidates through an index of word groups. A group that most cases share
+    # (such as "please answer the") tells nothing, and pairing all cases that share it would compare every pair.
     sh = {c.id: _shingles(_words(c)) for c in cases}
     index: dict[tuple, list[str]] = defaultdict(list)
     for cid, s in sh.items():
         for t in s:
             index[t].append(cid)
+    common = max(25, len(cases) // 50)
     seen = set()
     for cid, s in sh.items():
         shared: dict[str, int] = defaultdict(int)
         for t in s:
-            for other in index[t]:
+            holders = index[t]
+            if len(holders) > common:
+                continue
+            for other in holders:
                 if other > cid:
                     shared[other] += 1
-        for other, n in shared.items():
+        for other in shared:
             pair = (cid, other)
             if pair in exact_pairs or pair in seen or family[cid] == family[other]:
                 continue
-            jac = n / (len(s) + len(sh[other]) - n)
+            t_set = sh[other]
+            jac = len(s & t_set) / len(s | t_set)       # The exact similarity, only for the few candidates.
             if jac >= NEAR_DUPLICATE:
                 seen.add(pair)
-                issues.append(Issue("warning", "near_duplicate", [cid, other],
-                                    f"The inputs are {jac:.0%} the same."))
+                issues.append(Issue("warning", "near_duplicate", [cid, other], f"The inputs are {jac:.0%} the same."))
     return issues
 
 
