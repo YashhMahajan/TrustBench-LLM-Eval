@@ -169,6 +169,15 @@ def create_app(factory: sessionmaker | None = None) -> FastAPI:
         audit.record(f, p, "settings.update", ",".join(sorted(changes)))
         return new.model_dump()
 
+    @app.get("/v1/drift")
+    def get_drift(p: Principal = Depends(need("read")), f: sessionmaker = Depends(db), current_days: float = Query(7, gt=0, le=365),
+                  reference_days: float = Query(30, gt=0, le=365), name: str | None = None):
+        from .drift import drift_report
+        rep = drift_report(f, p.workspace_id, current_days, reference_days, name)
+        return {"reference_traces": rep.reference_traces, "current_traces": rep.current_traces, "warnings": rep.warnings,
+                "note": "Drift is a signal to investigate. It does not prove that quality fell.",
+                "findings": [vars(x) for x in rep.findings]}
+
     @app.get("/v1/audit")
     def get_audit(p: Principal = Depends(need("admin")), f: sessionmaker = Depends(db)):
         return {"entries": [{"id": e.id, "key_id": e.key_id, "action": e.action, "target": e.target, "at": _iso(e.created_at)}

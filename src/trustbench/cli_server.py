@@ -179,3 +179,38 @@ def jobs_retry(job_id: str):
         console.print(f"Task {job_id} is queued again.")
     else:
         _fail(f"Task {job_id} is not a dead task.")
+
+
+@app.command()
+def drift(
+    workspace: str = typer.Argument("default", help="Workspace name"),
+    current_days: float = typer.Option(7, help="The recent window, in days"),
+    reference_days: float = typer.Option(30, help="The window before it, in days"),
+    name: str = typer.Option(None, help="Only traces of this feature"),
+    all_features: bool = typer.Option(False, "--all", help="Also show the features that did not change"),
+):
+    """Has the production traffic or behaviour changed? Compares the recent window with the one before."""
+    from .drift import drift_report
+
+    factory = get_factory()
+    try:
+        ws = tenancy.get_workspace(factory, workspace)
+    except tenancy.TenancyError as e:
+        _fail(e)
+    rep = drift_report(factory, ws.id, current_days, reference_days, name)
+    console.print(f"Reference window: {rep.reference_traces} traces. Current window: {rep.current_traces} traces.")
+    for w in rep.warnings:
+        console.print(f"[yellow]{w}[/yellow]")
+    shown = rep.findings if all_features else rep.drifted
+    if rep.findings and not shown:
+        console.print(f"[green]No feature drifted[/green] ({len(rep.findings)} compared).")
+    if shown:
+        t = Table(title="Changes between the windows")
+        for col in ["Feature", "Change", "PSI / difference", "p-value", "Before", "Now"]:
+            t.add_column(col)
+        for f in shown:
+            colour = {"large": "red", "moderate": "yellow", "none": "dim"}[f.level]
+            stat = "-" if f.statistic is None else (f"{f.statistic:+.1%}" if f.kind == "rate" else f"{f.statistic:.2f}")
+            t.add_row(f.feature, f"[{colour}]{f.level if f.drifted else 'none'}[/{colour}]", stat, "-" if f.p_value is None else f"{f.p_value:.2g}", f.reference, f.current)
+        console.print(t)
+        console.print("[dim]A change is a signal to look, not proof that quality got worse. New kinds of users can change the traffic.[/dim]")

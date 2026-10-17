@@ -65,3 +65,23 @@ def test_jobs_commands_and_worker_wiring(tmp_path, monkeypatch):
     assert runner.invoke(app, ["jobs", "retry", job.id]).exit_code == 0
     assert runner.invoke(app, ["jobs", "retry", job.id]).exit_code == 1
     assert "queued 1" in runner.invoke(app, ["jobs", "status"]).output
+
+
+def test_drift_command(tmp_path, monkeypatch):
+    import datetime as dt
+    import random
+    from trustbench.tenancy import create_workspace
+    from trustbench.traces import TraceIn, ingest
+    from trustbench.db import utcnow
+    url = f"sqlite:///{tmp_path}/t.db"
+    monkeypatch.setenv("TRUSTBENCH_DATABASE_URL", url)
+    factory = init_db(make_engine(url))
+    ws = create_workspace(factory, "acme")
+    rng = random.Random(0)
+    now = utcnow()
+    ingest(factory, ws.id, [TraceIn(trace_id=f"r{i}", started_at=now - dt.timedelta(days=rng.uniform(8, 36)), duration_ms=rng.gauss(800, 100)) for i in range(200)])
+    ingest(factory, ws.id, [TraceIn(trace_id=f"c{i}", started_at=now - dt.timedelta(days=rng.uniform(0, 6)), duration_ms=rng.gauss(1500, 100)) for i in range(80)])
+    out = runner.invoke(app, ["drift", "acme"])
+    assert out.exit_code == 0 and "latency (ms)" in out.output and "large" in out.output and "not proof" in out.output
+    assert runner.invoke(app, ["drift", "nobody"]).exit_code == 1
+    assert "At least 30" in runner.invoke(app, ["drift", "acme", "--name", "none-such"]).output
