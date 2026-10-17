@@ -133,6 +133,7 @@ class EvaluationResult(Base):
     passed: Mapped[bool] = mapped_column(Boolean)
     score: Mapped[float] = mapped_column(Float)
     rationale: Mapped[str] = mapped_column(Text, default="")
+    details: Mapped[dict] = mapped_column(Json, default=dict)
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
 
 

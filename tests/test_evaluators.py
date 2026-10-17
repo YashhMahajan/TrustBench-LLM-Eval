@@ -1,8 +1,10 @@
+import asyncio
+
 from trustbench.evaluators import evaluate
 
 
 def one(evaluation, expected, output):
-    return evaluate(evaluation, expected, output)[0]
+    return asyncio.run(evaluate(evaluation, {}, expected, output))[0]
 
 
 def test_exact_match_ignores_case_space_and_punctuation():
@@ -28,3 +30,14 @@ def test_rule_reports_each_failure():
 
 def test_missing_reference_fails_instead_of_passing():
     assert not one({}, {}, "anything").passed
+
+
+def test_evaluator_error_is_flagged_as_evaluator_problem(monkeypatch):
+    from trustbench.evaluators import EVALUATORS
+
+    def broken(ctx):
+        raise RuntimeError("boom")
+
+    monkeypatch.setitem(EVALUATORS, "broken", broken)
+    r = one({"evaluators": [{"type": "broken"}]}, {}, "x")
+    assert not r.passed and r.details == {"error": True} and "boom" in r.rationale

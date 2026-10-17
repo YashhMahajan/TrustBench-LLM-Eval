@@ -61,7 +61,7 @@ def test_rescore_makes_no_model_calls_and_keeps_old_scores(factory, version, mon
     run_id = go(factory, version, provider)
     calls = provider.calls
     # Change the evaluator. Now every exact_match passes, so "5" counts for the 2+2 case.
-    lenient = lambda expected, output, spec: Outcome("exact_match", "2", True, 1.0, "lenient")
+    lenient = lambda ctx: Outcome("exact_match", "2", True, 1.0, "lenient")
     monkeypatch.setitem(EVALUATORS, "exact_match", lenient)
     batch = rescore(factory, run_id)
     assert provider.calls == calls and batch == 1

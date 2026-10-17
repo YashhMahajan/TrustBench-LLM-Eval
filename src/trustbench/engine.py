@@ -40,13 +40,12 @@ def _config_hash(provider: str, model: str, params: dict, system: str | None) ->
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
-def _score(session, response_id: int, case: TestCase, output: str, batch: int) -> bool:
-    outcomes = evaluate(case.evaluation, case.expected, output)
+def _store(session, response_id: int, outcomes, batch: int) -> None:
     for o in outcomes:
         session.add(EvaluationResult(
             response_id=response_id, batch=batch, evaluator=o.evaluator,
-            rubric_version=o.rubric_version, passed=o.passed, score=o.score, rationale=o.rationale))
-    return all(o.passed for o in outcomes)
+            rubric_version=o.rubric_version, passed=o.passed, score=o.score,
+            rationale=o.rationale, details=o.details))
 
 
 def run_eval(
@@ -119,6 +118,7 @@ async def _run(factory, dataset_version_id, specs, opt: RunOptions, provider_fac
                 if r is not None:
                     cost = estimate_cost(r.model_id, r.input_tokens, r.output_tokens)
                     spent += cost or 0.0
+                    outcomes = await evaluate(case.evaluation, case.input, case.expected, r.text)
                     with factory.begin() as s:
                         resp = ModelResponse(
                             execution_id=ex_id, attempt=attempt, ok=True, output=r.text,
@@ -126,7 +126,7 @@ async def _run(factory, dataset_version_id, specs, opt: RunOptions, provider_fac
                             output_tokens=r.output_tokens, latency_ms=r.latency_ms, cost_usd=cost)
                         s.add(resp)
                         s.flush()
-                        _score(s, resp.id, case, r.text, batch=0)
+                        _store(s, resp.id, outcomes, batch=0)
                         s.get(TestExecution, ex_id).status = "done"
                     return
                 with factory.begin() as s:
@@ -156,7 +156,11 @@ def _set_status(factory, ex_id: int, status: str) -> None:
 
 def rescore(factory: sessionmaker, run_id: str) -> int:
     """Apply the current evaluators to stored outputs. No model calls. Returns the new batch."""
-    with factory.begin() as s:
+    return asyncio.run(_rescore(factory, run_id))
+
+
+async def _rescore(factory: sessionmaker, run_id: str) -> int:
+    with factory() as s:
         batch = (s.scalar(
             select(func.max(EvaluationResult.batch))
             .join(ModelResponse, ModelResponse.id == EvaluationResult.response_id)
@@ -167,6 +171,9 @@ def rescore(factory: sessionmaker, run_id: str) -> int:
             .join(TestExecution, TestExecution.id == ModelResponse.execution_id)
             .join(TestCase, TestCase.id == TestExecution.test_case_id)
             .where(TestExecution.run_id == run_id, ModelResponse.ok.is_(True))).all()
-        for resp, case in rows:
-            _score(s, resp.id, case, resp.output, batch)
+    scored = [(resp.id, await evaluate(case.evaluation, case.input, case.expected, resp.output))
+              for resp, case in rows]
+    with factory.begin() as s:
+        for response_id, outcomes in scored:
+            _store(s, response_id, outcomes, batch)
     return batch
