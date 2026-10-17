@@ -320,6 +320,27 @@ class JobRow(Base):
     finished_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)
 
 
+class TraceEvaluation(Base):
+    """The result of an online check of a production trace.
+
+    kind says how much to trust it: 'measured' (a rule found it), 'estimated' (a judge model guessed it).
+    """
+
+    __tablename__ = "trace_evaluations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    trace_pk: Mapped[int] = mapped_column(ForeignKey("production_traces.id", ondelete="CASCADE"), index=True)
+    workspace_id: Mapped[str] = mapped_column(String(32), index=True)
+    evaluator: Mapped[str] = mapped_column(String(100))
+    rubric_version: Mapped[str] = mapped_column(String(20))
+    kind: Mapped[str] = mapped_column(String(10))
+    passed: Mapped[bool] = mapped_column(Boolean)
+    score: Mapped[float] = mapped_column(Float)
+    rationale: Mapped[str] = mapped_column(Text, default="")
+    details: Mapped[dict] = mapped_column(Json, default=dict)
+    created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
+
+
 def make_engine(url: str) -> Engine:
     if url.startswith("sqlite") and (":memory:" in url or url.endswith("//")):
         return create_engine(

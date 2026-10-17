@@ -41,10 +41,10 @@ def test_by_default_only_measurements_are_stored(factory, ws):
 
 def test_content_is_stored_redacted_and_encrypted_when_the_workspace_asks(factory, ws, key):
     update_policy(factory, ws.id, store_content=True)
-    ingest(factory, ws.id, [trace(trace_id="t1", input="mail ana@gmail.com please", output="Done.", context="Refunds take 30 days.")])
+    ingest(factory, ws.id, [trace(trace_id="t1", input="mail ana@gmail.com please", output="Done-with-marker.", context="Refunds take 30 days.")])
     row, _ = get_trace(factory, ws.id, "t1")
-    assert "gmail" not in row.input_enc and "Done" not in row.output_enc
-    assert reveal(row) == {"input": "mail [EMAIL] please", "output": "Done.", "context": "Refunds take 30 days."}
+    assert "gmail" not in row.input_enc and "Done-with" not in row.output_enc
+    assert reveal(row) == {"input": "mail [EMAIL] please", "output": "Done-with-marker.", "context": "Refunds take 30 days."}
 
 
 def test_content_without_a_key_is_rejected_and_nothing_is_stored(factory, ws, key, monkeypatch):

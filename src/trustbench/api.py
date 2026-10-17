@@ -98,6 +98,9 @@ def create_app(factory: sessionmaker | None = None) -> FastAPI:
                 rejected.append({"index": i, "reason": msg[:300]})
         res = tr.ingest(f, p.workspace_id, valid)
         rejected += [{"index": position[i], "reason": reason} for i, reason in res.rejected]
+        if res.eval_payloads:
+            from .online import enqueue_for_evaluation
+            enqueue_for_evaluation(f, p.workspace_id, res.eval_payloads)
         return {"accepted": res.accepted, "duplicates": res.duplicates, "rejected": sorted(rejected, key=lambda r: r["index"])}
 
     @app.get("/v1/traces")
@@ -114,6 +117,9 @@ def create_app(factory: sessionmaker | None = None) -> FastAPI:
             raise HTTPException(404, "No such trace.")
         row, spans = found
         out = trace_json(row, spans)
+        from .online import trace_evaluations
+        out["evaluations"] = [{"evaluator": e.evaluator, "kind": e.kind, "passed": e.passed, "score": e.score, "rationale": e.rationale,
+                               "rubric_version": e.rubric_version, "details": e.details} for e in trace_evaluations(f, p.workspace_id, row.id)]
         if reveal:
             if not p.allows("admin"):
                 raise HTTPException(403, "Only an admin key can read stored content.")

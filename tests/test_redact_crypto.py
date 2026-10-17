@@ -71,8 +71,8 @@ def key(monkeypatch):
 
 
 def test_encryption_round_trip_and_no_plain_text(key):
-    token = crypto.encrypt_text("secret answer: 42")
-    assert token.startswith("v1:") and "42" not in token and crypto.decrypt_text(token) == "secret answer: 42"
+    token = crypto.encrypt_text("secret answer: zebra-crossing")
+    assert token.startswith("v1:") and "zebra" not in token and crypto.decrypt_text(token) == "secret answer: zebra-crossing"
     assert crypto.encrypt_text("same") != crypto.encrypt_text("same")      # A fresh nonce each time.
 
 

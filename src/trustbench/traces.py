@@ -119,6 +119,7 @@ class IngestResult:
     duplicates: int = 0
     rejected: list[tuple[int, str]] = field(default_factory=list)       # (position in the batch, reason)
     sampled: list[int] = field(default_factory=list)                     # Ids of the traces chosen for online evaluation.
+    eval_payloads: dict[int, dict] = field(default_factory=dict)         # trace id -> redacted texts, in memory only.
 
 
 def ingest(factory: sessionmaker, workspace_id: str, traces: list[TraceIn]) -> IngestResult:
@@ -140,7 +141,7 @@ def ingest(factory: sessionmaker, workspace_id: str, traces: list[TraceIn]) -> I
                 continue
             seen.add(t.trace_id)
             try:
-                row = _build_row(workspace_id, t, policy)
+                row, texts = _build_row(workspace_id, t, policy)
             except crypto.SecretKeyMissing as e:
                 result.rejected.append((i, str(e)))
                 continue
@@ -153,10 +154,12 @@ def ingest(factory: sessionmaker, workspace_id: str, traces: list[TraceIn]) -> I
             result.accepted += 1
             if row.sampled:
                 result.sampled.append(row.id)
+                if policy.online_evaluators:
+                    result.eval_payloads[row.id] = texts
     return result
 
 
-def _build_row(workspace_id: str, t: TraceIn, policy: DataPolicy) -> ProductionTrace:
+def _build_row(workspace_id: str, t: TraceIn, policy: DataPolicy) -> tuple[ProductionTrace, dict[str, str | None]]:
     started = _naive_utc(t.started_at)
     row = ProductionTrace(
         workspace_id=workspace_id, trace_id=t.trace_id, name=t.name, started_at=started, duration_ms=t.duration_ms,
@@ -167,6 +170,7 @@ def _build_row(workspace_id: str, t: TraceIn, policy: DataPolicy) -> ProductionT
     row.eval_state = "pending" if row.sampled else "not_sampled"
     row.cost_usd = t.cost_usd if t.cost_usd is not None else estimate_cost(t.model or "", t.input_tokens, t.output_tokens)
     redactions: dict[str, int] = {}
+    texts: dict[str, str | None] = {"input": None, "output": None, "context": None}
     for field_name, text in (("input", t.input), ("output", t.output), ("context", t.context)):
         if text is None:
             continue
@@ -174,6 +178,7 @@ def _build_row(workspace_id: str, t: TraceIn, policy: DataPolicy) -> ProductionT
         for k, n in p.redactions.items():
             redactions[k] = redactions.get(k, 0) + n
         row.truncated |= p.truncated
+        texts[field_name] = p.clean
         if field_name == "input":
             row.input_hash, row.input_chars, row.input_enc = p.content_hash, p.length, p.ciphertext
         elif field_name == "output":
@@ -181,7 +186,7 @@ def _build_row(workspace_id: str, t: TraceIn, policy: DataPolicy) -> ProductionT
         else:
             row.context_enc = p.ciphertext
     row.redactions = redactions
-    return row
+    return row, texts
 
 
 # ---- Reading --------------------------------------------------------------------------

@@ -99,7 +99,8 @@ class DbQueue:
         with self.factory.begin() as s:
             row = s.get(JobRow, int(job_id))
             if row:
-                row.state, row.finished_at, row.lease_expires_at = "done", utcnow(), None
+                # The payload may hold encrypted trace text. A finished task does not need it any more.
+                row.state, row.finished_at, row.lease_expires_at, row.payload = "done", utcnow(), None, {}
 
     def fail(self, job_id, error, retry_in=None) -> str:
         with self.factory.begin() as s:
@@ -123,6 +124,12 @@ class DbQueue:
         with self.factory() as s:
             return [{"id": str(r.id), "kind": r.kind, "attempts": r.attempts, "error": r.last_error, "workspace_id": r.workspace_id}
                     for r in s.scalars(select(JobRow).where(JobRow.state == "dead").order_by(JobRow.id.desc()).limit(limit))]
+
+    def purge_finished(self, older_than: dt.timedelta = dt.timedelta(days=7)) -> int:
+        """Delete finished tasks (done) after some days, so the table does not grow without end."""
+        from sqlalchemy import delete
+        with self.factory.begin() as s:
+            return s.execute(delete(JobRow).where(JobRow.state == "done", JobRow.finished_at < utcnow() - older_than)).rowcount
 
     def retry_dead(self, job_id) -> bool:
         with self.factory.begin() as s:
@@ -198,7 +205,7 @@ class RedisQueue:
 
     def complete(self, job_id) -> None:
         self.r.zrem(self._k("running"), job_id)
-        self.r.hset(self._k("job", job_id), mapping={"state": "done"})
+        self.r.hset(self._k("job", job_id), mapping={"state": "done", "payload": "{}"})
 
     def fail(self, job_id, error, retry_in=None) -> str:
         self.r.zrem(self._k("running"), job_id)
