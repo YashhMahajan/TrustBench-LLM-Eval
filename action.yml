@@ -1,0 +1,107 @@
+# A reusable GitHub Action: check a change against your evaluation suite and comment on the pull request.
+#
+#   - uses: actions/checkout@v4
+#   - uses: YashhMahajan/TrustBench-LLM-Eval@<a full commit SHA>
+#     with:
+#       target: candidate
+#       baseline-target: main
+#
+# Needs a trustbench.yaml (see `trustbench init`) and, to comment, the permission `pull-requests: write`.
+# Use it in a `pull_request` workflow. Do not use it with `pull_request_target`: that would run code of the
+# pull request with write access to your repository.
+name: TrustBench check
+description: Run your evaluation suite on a change, apply the release policy, and comment the result on the pull request.
+branding:
+  icon: check-circle
+  color: green
+
+inputs:
+  config:
+    description: The config file.
+    default: trustbench.yaml
+  target:
+    description: The candidate target (a name in the config).
+    required: false
+  baseline-target:
+    description: A target to compare with. It runs first, on the same cases. Without it the baseline name of the config is used.
+    required: false
+  policy:
+    description: Release policy file. Default is the policy named in the config.
+    required: false
+  min-effect:
+    description: The smallest change in pass rate that matters.
+    default: "0.01"
+  post-comment:
+    description: "true: comment on the pull request. false: only write the step summary and the report."
+    default: "true"
+  cache:
+    description: Keep stored answers between runs, so a rerun costs nothing.
+    default: "true"
+  working-directory:
+    description: Where the config file is.
+    default: .
+  python-version:
+    description: The Python version.
+    default: "3.12"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install TrustBench
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: python -m pip install --quiet "$ACTION_PATH"
+
+    - name: Restore stored answers
+      if: inputs.cache == 'true'
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+      with:
+        path: ${{ inputs.working-directory }}/.trustbench-ci
+        key: trustbench-${{ runner.os }}-${{ github.sha }}
+        restore-keys: trustbench-${{ runner.os }}-
+
+    - name: Check
+      id: check
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        # Inputs go into the environment, never into the script text. A value cannot become a command.
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_TARGET: ${{ inputs.target }}
+        INPUT_BASELINE_TARGET: ${{ inputs.baseline-target }}
+        INPUT_POLICY: ${{ inputs.policy }}
+        INPUT_MIN_EFFECT: ${{ inputs.min-effect }}
+        INPUT_POST_COMMENT: ${{ inputs.post-comment }}
+        TRUSTBENCH_DATABASE_URL: sqlite:///.trustbench-ci/ci.db
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        mkdir -p .trustbench-ci
+        args=(--config "$INPUT_CONFIG" --min-effect "$INPUT_MIN_EFFECT"
+              --comment-file .trustbench-ci/comment.md --result-file .trustbench-ci/result.json)
+        [ -n "$INPUT_TARGET" ] && args+=(--target "$INPUT_TARGET")
+        [ -n "$INPUT_BASELINE_TARGET" ] && args+=(--baseline-target "$INPUT_BASELINE_TARGET")
+        [ -n "$INPUT_POLICY" ] && args+=(--policy "$INPUT_POLICY")
+        [ "$INPUT_POST_COMMENT" = "false" ] && args+=(--no-post)
+        trustbench ci check "${args[@]}"
+
+    - name: Save stored answers
+      if: always() && inputs.cache == 'true'
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+      with:
+        path: ${{ inputs.working-directory }}/.trustbench-ci
+        key: trustbench-${{ runner.os }}-${{ github.sha }}
+
+    - name: Upload the report
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+      with:
+        name: trustbench-report
+        path: |
+          ${{ inputs.working-directory }}/.trustbench-ci/comment.md
+          ${{ inputs.working-directory }}/.trustbench-ci/result.json
+        if-no-files-found: ignore

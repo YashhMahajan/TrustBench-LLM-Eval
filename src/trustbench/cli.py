@@ -35,10 +35,10 @@ def run(
     model: list[str] = typer.Option(None, "--model", "-m", help="provider:model, python:module:function@label or http:URL@label. Repeat for more."),
     target: list[str] = typer.Option(None, "--target", "-t", help="A target name from trustbench.yaml. Repeat for more."),
     config: Path = typer.Option(None, "--config", help="Config file (default: ./trustbench.yaml when it exists)"),
-    reps: int = typer.Option(None, help="Repetitions for each case (default 1)"),
-    concurrency: int = typer.Option(None, help="Calls at the same time (default 4)"),
-    retries: int = typer.Option(None, help="Retries of a failed call (default 2)"),
-    timeout: float = typer.Option(None, help="Seconds for each model call (default 60)"),
+    reps: int = typer.Option(None, min=1, help="Repetitions for each case (default 1)"),
+    concurrency: int = typer.Option(None, min=1, help="Calls at the same time (default 4)"),
+    retries: int = typer.Option(None, min=0, help="Retries of a failed call (default 2)"),
+    timeout: float = typer.Option(None, min=0.001, help="Seconds for each model call (default 60)"),
     budget: float = typer.Option(None, help="Stop starting new calls after this many USD"),
     name: str = typer.Option(None, help="A label for the run"),
     judge: str = typer.Option(None, help="provider:model that grades open answers"),
@@ -47,65 +47,42 @@ def run(
     no_cache: bool = typer.Option(False, "--no-cache", help="Ask the model again, even when the answer is stored"),
 ):
     """Run a dataset against your models or apps. Reads trustbench.yaml when it exists. Flags win over the file."""
-    from .datasets import DatasetError
-    from .engine import RunOptions
-    from .datasets import import_dataset
-    from .datasets import load_cases
-    from . import quality
-    from .datasets import resolve_path
+    from .edd.config import ConfigError, RunSettings, load_config
+    from .edd.runner import RunSetupError, load_dataset, read_prompt, run_options
     from .engine import RunInterrupted, run_eval
     from .providers import allow_app_targets
     allow_app_targets()                      # Only the CLI and pytest may run python: and http: targets.
-    from .edd.config import ConfigError, RunSettings, load_config
     try:
         cfg = load_config(config)
         if target and not cfg:
             raise ConfigError("--target needs a trustbench.yaml. Create one with 'trustbench init'.")
         specs = model or (cfg.specs(target) if cfg and (cfg.targets or target) else None) or detect_models()
-    except ConfigError as e:
+        settings = (cfg.run if cfg else RunSettings()).merged(
+            reps=reps, concurrency=concurrency, retries=retries, timeout=timeout, budget=budget, rpm=rpm,
+            cache=False if no_cache else None)
+        prompt = read_prompt(system_prompt_file or (Path(settings.system_prompt_file) if settings.system_prompt_file else None))
+    except (ConfigError, RunSetupError) as e:
         console.print(f"[red]{e}[/red]")
-        raise typer.Exit(1)
-    settings = cfg.run if cfg else RunSettings()
-    dataset = dataset or (cfg.dataset if cfg else None) or "smoke"
-    judge = judge or (cfg.judge if cfg else None)
-    reps, concurrency = reps or settings.reps, concurrency or settings.concurrency
-    retries = settings.retries if retries is None else retries
-    timeout, budget, rpm = timeout or settings.timeout, budget or settings.budget, rpm or settings.rpm
-    prompt_path = system_prompt_file or (Path(settings.system_prompt_file) if settings.system_prompt_file else None)
-    if prompt_path is not None and not prompt_path.is_file():
-        console.print(f"[red]System prompt file not found: {prompt_path}[/red]")
         raise typer.Exit(1)
     if not specs:
         console.print("[red]No model found.[/red] Set ANTHROPIC_API_KEY, OPENAI_API_KEY or GEMINI_API_KEY, "
                       "or use --model mock:smoke to try it without a key.")
         raise typer.Exit(1)
+    dataset = dataset or (cfg.dataset if cfg else None) or "smoke"
+    factory = _factory()
     try:
-        path = resolve_path(dataset)
-        cases = load_cases(path)
-    except DatasetError as e:
+        version, warnings, workspace_id = load_dataset(factory, dataset)
+    except RunSetupError as e:
         console.print(f"[red]{e}[/red]")
         raise typer.Exit(1)
-    issues = quality.check(cases)
-    errors = [i for i in issues if i.severity == "error"]
-    if errors:
-        console.print(f"[red]The dataset has {len(errors)} error(s).[/red] Run 'trustbench check {dataset}' to see them.")
-        raise typer.Exit(1)
-    if issues:
-        console.print(f"[yellow]{len(issues)} dataset warning(s). Run 'trustbench check {dataset}' to see them.[/yellow]")
-    factory = _factory()
-    from .tenancy import ensure_default_workspace
-    workspace_id = ensure_default_workspace(factory).id
-    with factory() as s:
-        version = import_dataset(s, path.stem, cases, workspace_id)
+    if warnings:
+        console.print(f"[yellow]{warnings} dataset warning(s). Run 'trustbench check {dataset}' to see them.[/yellow]")
     console.print(f"Dataset {version.name} version {version.content_hash}: {version.case_count} cases. "
                   f"Models: {', '.join(specs)}")
     try:
         with _progress_bar() as update:
             run_id = run_eval(factory, version.id, specs,
-                              RunOptions(repetitions=reps, concurrency=concurrency, retries=retries,
-                                         timeout=timeout, budget_usd=budget, name=name, judge=judge,
-                                         rpm=rpm, cache=settings.cache and not no_cache,
-                                         system_prompt=prompt_path.read_text() if prompt_path else None),
+                              run_options(settings, name=name, judge=judge or (cfg.judge if cfg else None), system_prompt=prompt),
                               workspace_id=workspace_id, progress=update)
     except ValueError as e:
         console.print(f"[red]{e}[/red]")
@@ -402,4 +379,4 @@ def calibration(run_id: str, model: str = typer.Option(None, help="provider:mode
         console.print(f"[yellow]{w}[/yellow]")
 
 
-from . import cli_stats, cli_server, cli_selftest, cli_db, cli_edd  # noqa: E402,F401  (add compare, gate, baseline, policy, workspace, key, serve and init commands)
+from . import cli_stats, cli_server, cli_selftest, cli_db, cli_edd, cli_ci  # noqa: E402,F401  (add compare, gate, baseline, policy, workspace, key, serve, init and ci commands)

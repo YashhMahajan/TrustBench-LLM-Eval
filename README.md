@@ -22,6 +22,8 @@ No key? Try the demo: `trustbench run --model mock:smoke`
 | `trustbench cost RUN_ID` | Yearly cost of the system with its mistakes, with an interval, against the manual process and a perfect system |
 | `trustbench experiment record / list / compare` | Name a run as a variant with a parent and a hypothesis. `compare` says if the evidence supports it, and shows the prompt diff. |
 | `trustbench plugins` | List evaluator plugins from other packages |
+| `trustbench ci check --target candidate --baseline-target main` | For CI: run both, apply the release policy, write a pull request comment, post it. Exit code 1 blocks the merge. |
+| `trustbench ci comment RUN_ID` / `trustbench ci post FILE` | Build the comment for an existing run / post a comment file |
 | `trustbench results RUN_ID` | Show the result of each case |
 | `trustbench show RUN_ID CASE_ID` | Explain one case: answer, scores, reasons, claims |
 | `trustbench rescore RUN_ID` | Score stored outputs again. No model calls. |

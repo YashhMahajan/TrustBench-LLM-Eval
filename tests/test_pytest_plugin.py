@@ -19,6 +19,7 @@ DATA = [{"id": "a", "input": "Capital of France?", "expected": {"answer": "Paris
 @pytest.fixture
 def project(pytester, monkeypatch):
     monkeypatch.setenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")      # Load the plugin only through -p, installed or not.
+    monkeypatch.setenv("PYTHONDONTWRITEBYTECODE", "1")             # A test file rewritten in the same second must not run from a stale .pyc.
     monkeypatch.delenv("TRUSTBENCH_LIVE", raising=False)
     monkeypatch.delenv("TRUSTBENCH_DATABASE_URL", raising=False)
     pytester.makepyfile(my_app=APP)

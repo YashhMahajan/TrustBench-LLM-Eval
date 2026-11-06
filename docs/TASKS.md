@@ -54,12 +54,15 @@ Later hardening: batched writes, answer cache, resume, rate limit, composite ind
 - [x] 51 new tests, mutation-checked
 - [x] Commit (local only)
 
-## M5 — CI/CD  [ ]
-- [ ] `.github/workflows/ci.yml`: ruff, pytest, selftest, docker build, `pnpm build`
-- [ ] `action.yml` (composite): run, gate, PR comment, HTML report artifact
-- [ ] `trustbench ci comment RUN --baseline X --format github`. Update in place. Truncate under the 65k limit.
-- [ ] Golden snapshot test for the comment
-- [ ] Commit (local only)
+## M5 — CI/CD  [x]
+- [x] `.github/workflows/ci.yml`: ruff, pytest, selftest; Docker build and health check; dashboard typecheck and build. Actions pinned to commit SHAs. Least permission.
+- [x] `action.yml` (reusable composite Action): `trustbench ci check`, cached answers, report artifact. Inputs go through `env`, never into the script text.
+- [x] `trustbench ci check | comment | post`; `ci/comment.py` (comment with escaping of untrusted text, size cap), `ci/github.py` (update in place, only bot comments with the marker), `ci/check.py`
+- [x] `edd/runner.py`: shared run steps for `run`, `ci check` and the pytest plugin
+- [x] Golden snapshot test of the comment. Tests that lint the workflow and Action (pinned SHAs, no script injection, options exist).
+- [x] Verified locally: the exact CI install command in a fresh virtualenv, the server health check on SQLite, the dashboard typecheck and build
+- [ ] Not verified: the workflow and the Action on GitHub (they were never run there), the Docker job (the Docker daemon was not running here)
+- [x] Commit (local only)
 
 ## M6 — Flagship example and docs  [ ]
 - [ ] `examples/support_agent/`: tools, v0 / v1 / v2, datasets (single-turn, multi-turn, adversarial)

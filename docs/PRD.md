@@ -1,6 +1,6 @@
 # TrustBench — Product Requirements
 
-Status: living document. Last updated with Phase 8, milestone 4 (done).
+Status: living document. Last updated with Phase 8, milestone 5 (done).
 Style: short sentences. One idea in each sentence.
 
 ## 1. Problem
@@ -82,7 +82,7 @@ Priority: P0 = must have. P1 = should have. P2 = later.
 | R14 | Experiments: name a variant, state a hypothesis, compare with a parent, per-slice change | P0 | Done (M4) |
 | R15 | A business cost model with an interval. A gate rule on yearly cost. An unknown cost is never zero (report: incomplete; gate: inconclusive). | P0 | Done (M4) |
 | R16 | Prompt versions in the run snapshot. `compare` shows the diff. | P1 | Done (M4) |
-| R17 | CI workflow for this repo and a reusable GitHub Action that comments on pull requests | P0 | Planned (M5) |
+| R17 | CI workflow for this repo and a reusable GitHub Action that comments on pull requests | P0 | Done (M5, not yet run on GitHub) |
 
 ### 5.3 Showcase and onboarding (Phase 8)
 | ID | Requirement | Priority | Status |

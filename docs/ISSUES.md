@@ -11,8 +11,8 @@ Status: Open, Planned (has a task in `docs/TASKS.md`), Accepted (a choice we mad
 | I-01 | No call to a live model provider was ever made | High | Open | All tests use the mock provider and `httpx.MockTransport`. Run one small real run and record it in `docs/PERFORMANCE.md` before release. |
 | I-02 | Not run against a real PostgreSQL server | High | Open | Postgres is checked as generated SQL only. Tests use SQLite. Migration 0005 uses `batch_alter_table`. Check it on Postgres. |
 | I-03 | Not run against a real Redis server | Medium | Open | The job queue is tested with `tests/fake_redis.py`. |
-| I-04 | Docker images were never built | Medium | Open | `docker compose config` passes. Add a Docker build to CI (M5). |
-| I-05 | The dashboard was not rebuilt after the Phase 7 edge changes, and it has no tests | Medium | Planned (M5) | CI will run `pnpm build`. |
+| I-04 | Docker images were never built here | Medium | Open | The Docker daemon was not running on the dev machine, and starting it is the owner's call. CI builds the image and checks its health (M5), but CI was never run. The server was checked outside Docker on SQLite (health 200). |
+| I-05 | The dashboard has no tests | Low | Open | The typecheck and the production build pass (checked locally with pnpm 11 and Node 24; also in CI). |
 | I-06 | Distributed workers are tested with one process and a simulated crash | Low | Accepted | |
 
 ## Product gaps
@@ -27,6 +27,10 @@ Status: Open, Planned (has a task in `docs/TASKS.md`), Accepted (a choice we mad
 | I-15 | The dashboard has no Evaluators page (judge validation) and no Reports page | Low | Open | The report export exists as a file and an API route. |
 | I-16 | RAG checks read documents from a `retrieval` span. A retriever that records nothing needs `input.context`. | Low | Accepted | The error message says what to do. |
 | I-17 | Datasets are not split into dev, test and holdout. No contamination check. | Medium | Open | |
+| I-30 | The workflow and the Action were never run on GitHub | High | Open | Everything checkable locally is tested (YAML structure, pinned SHAs, no script injection, option names, the comment, the poster against a simulated API, the install command in a fresh virtualenv). The first real run will teach us more. |
+| I-31 | A baseline from `main` needs a database or a `baseline-target` in the same checkout | Medium | Accepted | `ci check --baseline-target` runs both targets in one job on the same cases. Comparing a pull request with the code of `main` needs a baseline stored between jobs (the Action caches answers, not named baselines). |
+| I-32 | Python 3.11 is declared (`requires-python >=3.11`) but only 3.12 is tested | Low | Open | CI uses 3.12. |
+| I-33 | A cached answer database holds model outputs. Anyone who can read the repository's Actions caches can read them. | Medium | Accepted | Do not put secrets in test data. Set the Action input `cache: "false"` to turn it off. |
 | I-27 | The pytest plugin stores answers in `.trustbench/pytest.db` (SQLite). Two pytest processes at once (for example `pytest -n`) can lock it. | Low | Open | Use `--trustbench-db` with Postgres, or run evaluation tests in one process. |
 | I-18 | A static price table. No spend history per workspace. No budget alerts. | Low | Open | An unknown price is never counted as zero. |
 | I-26 | Judge answers are not cached, so a judge-based test needs the judge's API key even in pytest replay mode | Medium | Open | Use rule-based evaluators (`tool_call`, `trajectory`, `task_success`, `exact_match`) for free replay. Caching judge calls is a possible later task. |

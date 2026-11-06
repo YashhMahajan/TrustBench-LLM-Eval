@@ -28,6 +28,10 @@ class RunSettings(BaseModel):
     cache: bool = True
     system_prompt_file: str | None = None            # A file with the system prompt. Its text is stored with the run.
 
+    def merged(self, **flags) -> "RunSettings":
+        """These settings with command line flags on top. A flag that is None means: not given."""
+        return self.model_copy(update={k: v for k, v in flags.items() if v is not None})
+
 
 class EddConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")

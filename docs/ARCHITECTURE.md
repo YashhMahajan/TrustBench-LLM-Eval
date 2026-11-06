@@ -1,7 +1,7 @@
 # TrustBench — Architecture
 
 This is the map of the code. Read it first. Then open the file you need.
-Last updated: Phase 8, milestone 4 (done).
+Last updated: Phase 8, milestone 5 (done).
 
 ## 1. One picture
 
@@ -52,7 +52,8 @@ Packages first. Then the flat modules in `src/trustbench/`, grouped by job.
 |---|---|
 | `providers/` | `base.py` (interface, prices), `http.py` (Anthropic, OpenAI-compatible), `mock.py`, `app.py` (python:/http: targets), `recorder.py` (tool calls and spans) |
 | `agents/` | Evaluators for agents: `eval_tool_call.py`, `eval_trajectory.py`, `eval_task_success.py`, `eval_rag_judged.py`; `matchers.py` (expected values); `schema.py` (load-time checks) |
-| `edd/` | EDD workflow: `config.py` (trustbench.yaml), `plugins.py` (evaluator plugins), `pytest_plugin.py` (evaluations in pytest), `experiments.py` (variants, hypotheses, verdicts), `costmodel.py` (dollars per year with an interval) |
+| `ci/` | Pull request checks: `comment.py` (Markdown comment, escaping, size cap), `github.py` (post or update), `check.py` (run, gate, comment). The Action `action.yml` and `.github/workflows/ci.yml` are in the repo root. |
+| `edd/` | EDD workflow: `config.py` (trustbench.yaml), `plugins.py` (evaluator plugins), `pytest_plugin.py` (evaluations in pytest), `experiments.py` (variants, hypotheses, verdicts), `costmodel.py` (dollars per year with an interval), `runner.py` (run steps shared by the CLI, CI and pytest) |
 | `selftest/` | 33 checks that prove TrustBench measures correctly: `checks_stats.py`, `checks_eval.py`, `checks_agents.py`, `checks_system.py` |
 | `suites/` | Ten built-in datasets (`smoke`, `factual`, `grounded`, `hallucination`, `injection`, `safety`, `abstention`, `calibration`, `structured_output`, `instruction_following`) |
 | `migrations/` | Alembic versions 0001–0006 |
@@ -72,7 +73,7 @@ Packages first. Then the flat modules in `src/trustbench/`, grouped by job.
 | Production | `sdk.py`, `traces.py`, `online.py`, `drift.py`, `monitor.py`, `jobs.py`, `handlers.py`, `dataprotect.py` |
 | Server and access | `api.py`, `api_data.py`, `tenancy.py`, `web_security.py`, `ratelimit.py`, `audit.py`, `crypto.py`, `redact.py` |
 | Storage | `db.py`, `migrate.py`, `bulk.py` |
-| CLI | `cli.py`, `cli_stats.py`, `cli_server.py`, `cli_db.py`, `cli_selftest.py`, `cli_edd.py` (init, plugins, cost, experiment), `cli_common.py`, `demo.py` |
+| CLI | `cli.py`, `cli_stats.py`, `cli_server.py`, `cli_db.py`, `cli_selftest.py`, `cli_edd.py` (init, plugins, cost, experiment), `cli_ci.py` (ci check, comment, post), `cli_common.py`, `demo.py` |
 
 The flat root is large (about 70 modules). The rule for new code: **put it in a package, not in the root.**
 Moving old modules into packages is a possible later cleanup. It needs its own commit and a full test run.
@@ -113,6 +114,11 @@ Moving old modules into packages is a possible later cleanup. It needs its own c
 10. The server never runs `python:` or `http:` targets (`test_no_server_module_turns_app_targets_on`).
 
 ## 7. Security model
+
+- CI: the Action and the workflow pin every third-party action to a commit SHA, run with `contents: read`, and pass inputs through `env`.
+  The comment escapes everything that came from a model or from test data (HTML, links, images, mentions, tables, code, math, bare URLs).
+  The poster edits only a bot comment that starts with the marker, validates the repository name, and never prints the token.
+  Use the Action in a `pull_request` workflow, never `pull_request_target`.
 
 - API keys have roles (read, write, admin) and can expire. Workspaces isolate data.
 - Production content is redacted before it is stored. Stored content can be encrypted (Fernet).
