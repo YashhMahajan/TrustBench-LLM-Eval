@@ -169,3 +169,58 @@ def test_the_cli_run_belongs_to_the_default_workspace_and_the_default_key_sees_i
     client = TestClient(create_app(f))
     runs = client.get("/v1/runs", headers=hdr(key)).json()["runs"]
     assert len(runs) == 1 and runs[0]["models"]["mock:smoke"]["n"] == 5
+
+
+# ---- Experiments and tool calls (Phase 8) -------------------------------------------------------------
+
+def test_the_experiments_route_lists_variants_with_rates_and_the_verdict_on_the_hypothesis(demo_env):
+    _, result, client = demo_env
+    r = client.get("/v1/experiments", headers=hdr(result.api_key))
+    assert r.status_code == 200
+    rows = {e["name"]: e for e in r.json()["experiments"]}
+    assert list(rows) == ["atlas-1", "atlas-2"]
+    base, cand = rows["atlas-1"], rows["atlas-2"]
+    assert base["parent"] is None and base["verdict"] is None and base["change"] is None and 0 <= base["rate"] <= 1 and base["n"] > 100
+    assert cand["parent"] == "atlas-1" and cand["hypothesis"].startswith("A larger model") and cand["run_id"] == result.runs["candidate"]
+    assert cand["verdict"] in ("supported", "refuted", "mixed", "no_effect", "cannot_tell") and cand["change"] is not None
+    assert len(cand["ci"]) == 2 and isinstance(cand["regressed_slices"], list)
+
+
+def test_the_experiments_route_needs_a_key_and_shows_only_the_workspace_of_the_key(demo_env):
+    factory, result, client = demo_env
+    assert client.get("/v1/experiments").status_code == 401
+    other = create_workspace(factory, "other-ws")
+    _, token = create_api_key(factory, other.id, "k", "read")
+    assert client.get("/v1/experiments", headers=hdr(token)).json() == {"experiments": []}
+
+
+def test_a_case_detail_carries_what_the_app_did(tmp_path, monkeypatch):
+    """Tool calls and spans of an app target reach the dashboard through the case detail route."""
+    from trustbench.datasets import CaseSpec
+    from trustbench.db import init_db, make_engine
+    from trustbench.providers import allow_app_targets
+    monkeypatch.syspath_prepend(str(tmp_path))
+    (tmp_path / "steps_app.py").write_text(
+        "from trustbench.providers.recorder import span, tool_call\n"
+        "def answer(prompt):\n"
+        "    with span('retrieval', 'kb', docs=['Refunds take 14 days.']):\n        pass\n"
+        "    tool_call('lookup_order', {'order_id': 'A1'}, result={'status': 'shipped'})\n"
+        "    return 'It shipped.'\n")
+    f = init_db(make_engine("sqlite://"))
+    ws = create_workspace(f, "agent")
+    _, key = create_api_key(f, ws.id, "k", "read")
+    with f() as s:
+        v = import_dataset(s, "steps", [CaseSpec(id="c1", input="Where is A1?", expected={"answer": "It shipped."})], ws.id)
+    allow_app_targets()
+    run_id = run_eval(f, v.id, ["python:steps_app:answer@v1"], RunOptions(backoff=0), workspace_id=ws.id)
+    detail = TestClient(create_app(f)).get(f"/v1/runs/{run_id}/cases/c1", headers=hdr(key)).json()
+    ex = detail["executions"][0]
+    assert ex["tool_calls"] == [{"name": "lookup_order", "args": {"order_id": "A1"}, "result": {"status": "shipped"}, "error": None}]
+    assert ex["spans"][0]["kind"] == "retrieval" and ex["spans"][0]["data"]["docs"] == ["Refunds take 14 days."]
+
+
+def test_a_plain_model_case_has_no_tool_calls(demo_env):
+    _, result, client = demo_env
+    cases = client.get(f"/v1/runs/{result.runs['main']}/cases?limit=1", headers=hdr(result.api_key)).json()["cases"]
+    detail = client.get(f"/v1/runs/{result.runs['main']}/cases/{cases[0]['case_id']}", headers=hdr(result.api_key)).json()
+    assert detail["executions"][0]["tool_calls"] is None and detail["executions"][0]["spans"] is None

@@ -9,6 +9,7 @@ const GROUPS = [
   { name: "Evaluate", items: [
     { href: "/", label: "Overview", icon: I.overview },
     { href: "/runs", label: "Experiments", icon: I.runs },
+    { href: "/experiments", label: "Variant history", icon: I.runs },
     { href: "/regression", label: "Compare and gate", icon: I.gate },
     { href: "/benchmarks", label: "Benchmarks", icon: I.data },
     { href: "/models", label: "Models", icon: I.models },

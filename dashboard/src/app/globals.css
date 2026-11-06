@@ -270,6 +270,7 @@ a { color: inherit; text-decoration: none; }
 
 .res { display: inline-block; min-width: 44px; text-align: center; padding: 1px 7px; border-radius: 3px; font: 600 11px/1.6 var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; }
 .res--pass { color: var(--pass); background: var(--pass-soft); } .res--fail { color: var(--fail); background: var(--fail-soft); }
+.res--warn { color: var(--warn); background: transparent; box-shadow: inset 0 0 0 1px var(--rule-strong); } .res--neutral { color: var(--ink-2); background: var(--surface-2); }
 .res--error, .res--skipped { color: var(--stop); background: var(--stop-soft); }
 .drawer { position: fixed; z-index: 50; top: 0; right: 0; bottom: 0; width: min(560px, 100vw); background: var(--surface); border-left: 1px solid var(--rule-strong); overflow-y: auto; box-shadow: -18px 0 40px -24px rgba(5, 10, 18, 0.35); animation: drawer-in 240ms var(--ease-drawer) both; }
 @keyframes drawer-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }

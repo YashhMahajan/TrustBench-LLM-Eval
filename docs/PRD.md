@@ -1,6 +1,6 @@
 # TrustBench — Product Requirements
 
-Status: living document. Last updated with Phase 8, milestone 5 (done).
+Status: living document. Last updated with Phase 8, milestone 6 (done).
 Style: short sentences. One idea in each sentence.
 
 ## 1. Problem
@@ -89,7 +89,7 @@ Priority: P0 = must have. P1 = should have. P2 = later.
 |---|---|---|---|
 | R18 | A support-agent example that runs with no API keys (`make edd-demo`) and tells the EDD story | P0 | Done (M6) |
 | R19 | `docs/EDD.md` and a README section "EDD in 5 minutes" | P0 | Done (M6) |
-| R20 | Dashboard: an Experiments page and a trajectory view | P1 | Planned (M6) |
+| R20 | Dashboard: an Experiments page and a trajectory view | P1 | Done (M6) |
 
 ### 5.4 Platform (Phases 1–7, done)
 Statistical comparison and release gate. Judge validation and bias tests. Robustness and calibration.

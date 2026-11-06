@@ -12,9 +12,10 @@ from . import __version__, proposals as prop
 from .calibration import calibration_from_records
 from .comparison import compare_runs
 from .db import (
-    Baseline, DatasetVersion, EvaluationRun, ProposedCase, ReleaseDecision, TestCase, Workspace,
+    Baseline, DatasetVersion, EvaluationRun, Experiment, ProposedCase, ReleaseDecision, TestCase, Workspace,
 )
 from .datasets import CaseSpec, render_prompt
+from .edd.experiments import compare_runs_of
 from .failure_report import analyze_failures
 from .failures import classify
 from .frontier import apply_constraints, candidates_from_runs, pareto
@@ -27,6 +28,7 @@ from .rag import diagnose
 from .report import case_detail
 from .robustness import robustness_report
 from .rundata import load_run
+from .scorecard import scorecard
 from .slices import find_slices, regression_scan
 from .summary import run_summary
 from .tenancy import Principal, owned
@@ -202,6 +204,27 @@ def register(app: FastAPI, need, db) -> None:
         except (ValidationError, ValueError, TypeError) as e:    # The caller's policy or ids are wrong. Say how.
             raise HTTPException(422, str(e)[:300])
         return {"policy": policy.model_dump(), "decision": decision.to_dict()}
+
+    @app.get("/v1/experiments")
+    def get_experiments(p: Principal = Depends(need("read")), f: sessionmaker = Depends(db), limit: int = Query(40, ge=1, le=200)):
+        """The history of variants, oldest first, each with its pass rate and, if it has a parent, the verdict on its hypothesis."""
+        ws = workspace(f, p)
+        with f() as s:
+            rows = list(s.scalars(select(Experiment).where(owned(Experiment.workspace_id, ws)).order_by(Experiment.id.desc()).limit(limit)))[::-1]
+            by_id = {e.id: e for e in s.scalars(select(Experiment).where(owned(Experiment.workspace_id, ws)))}
+        out = []
+        for e in rows:
+            parent = by_id.get(e.parent_id)
+            card = scorecard(load_run(f, e.run_id).for_model(e.model)).overall
+            item = {"name": e.name, "parent": parent.name if parent else None, "run_id": e.run_id, "model": e.model, "hypothesis": e.hypothesis,
+                    "created_at": _iso(e.created_at), "n": card.n, "rate": card.rate, "ci": card.ci, "verdict": None, "change": None, "ci_change": None,
+                    "regressed_slices": []}
+            if parent:
+                rep = compare_runs_of(f, e.name, parent.name, e.hypothesis, e.run_id, parent.run_id, e.model, parent.model)
+                item.update(verdict=rep.verdict, change=rep.comparison.overall.diff, ci_change=rep.comparison.overall.ci,
+                            regressed_slices=[f"{x.dimension} = {x.value}" for x in rep.regressed_slices])
+            out.append(item)
+        return _plain({"experiments": out})
 
     @app.get("/v1/baselines")
     def get_baselines(p: Principal = Depends(need("read")), f: sessionmaker = Depends(db)):

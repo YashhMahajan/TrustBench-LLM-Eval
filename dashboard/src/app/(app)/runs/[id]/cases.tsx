@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { api, apiOrNull } from "@/lib/api";
 import { label, ms, pct } from "@/lib/format";
-import type { CaseDetail, CaseRow } from "@/lib/types";
+import type { AppSpan, CaseDetail, CaseRow, ToolCall } from "@/lib/types";
 import { Empty, Panel } from "@/components/Panel";
 import { EscClose } from "@/components/EscClose";
 import type { SP } from "./page";
@@ -72,6 +72,7 @@ function Drawer({ detail, close }: { detail: CaseDetail; close: string }) {
               <div><div className="field__label">Question</div><div className="field__box">{Object.entries(e.input).map(([k, v]) => (k === "prompt" ? v : `${k}: ${v}`)).join("\n\n")}</div></div>
               {Object.keys(e.expected).length > 0 && <div><div className="field__label">Expected</div><div className="field__box">{JSON.stringify(e.expected, null, 2)}</div></div>}
               <div><div className="field__label">Answer</div><div className="field__box">{e.output ?? (e.error ? `No answer. ${e.error}` : "No answer.")}</div></div>
+              {e.tool_calls && e.tool_calls.length > 0 && <Steps calls={e.tool_calls} spans={e.spans ?? []} />}
               {e.attempts.filter((a) => !a.ok).length > 0 && <div className="callout callout--warn">{e.attempts.filter((a) => !a.ok).length} call attempt(s) failed: {e.attempts.filter((a) => !a.ok)[0].error}</div>}
               {e.labels.length > 0 && <div><div className="field__label">What went wrong</div><span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{e.labels.map((l) => <span key={l} className="chip">{label(l)}</span>)}</span></div>}
               <div>
@@ -94,5 +95,33 @@ function Drawer({ detail, close }: { detail: CaseDetail; close: string }) {
         </div>
       </aside>
     </>
+  );
+}
+
+const short = (v: unknown) => { const t = typeof v === "string" ? v : JSON.stringify(v); return t.length > 160 ? `${t.slice(0, 160)}…` : t; };
+
+/** What the app did, in order: its tool calls with arguments and results, and the documents it retrieved. */
+function Steps({ calls, spans }: { calls: ToolCall[]; spans: AppSpan[] }) {
+  const docs = spans.filter((s) => s.kind === "retrieval").flatMap((s) => (Array.isArray(s.data.docs) ? (s.data.docs as unknown[]) : []));
+  return (
+    <div>
+      <div className="field__label">Steps the app took</div>
+      <ol style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 8 }}>
+        {calls.map((c, i) => (
+          <li key={i}>
+            <span className="mono" style={{ fontWeight: 600 }}>{c.name}</span>
+            <span className="mono hint"> ({Object.entries(c.args).map(([k, v]) => `${k}=${short(v)}`).join(", ")})</span>
+            {c.error ? <div style={{ color: "var(--fail)", fontSize: 12.5 }}>error: {c.error}</div>
+              : c.result != null && <div className="hint" style={{ overflowWrap: "anywhere" }}>returned {short(c.result)}</div>}
+          </li>
+        ))}
+      </ol>
+      {docs.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <div className="field__label">Documents it retrieved</div>
+          <div className="field__box">{docs.map((d) => short(typeof d === "object" && d && "text" in d ? (d as { text: unknown }).text : d)).join("\n\n")}</div>
+        </div>
+      )}
+    </div>
   );
 }

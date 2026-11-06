@@ -63,6 +63,8 @@ Recorded by `providers/recorder.py`. Stored as JSON on `model_responses` and `re
 
 Span kinds: `model`, `retrieval`, `tool`, `other` (the same kinds as production traces).
 
+The API returns both for a case: `GET /v1/runs/{id}/cases/{case_id}` has `tool_calls` and `spans` for each execution (null for a plain model). `GET /v1/experiments` lists the variants with their pass rates and the verdict on each hypothesis.
+
 An app target model string: `python:package.module:function@label` or `http:https://host/path@label`.
 The text after the last `@` is the version label (not part of the function name or URL path).
 

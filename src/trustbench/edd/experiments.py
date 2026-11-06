@@ -115,15 +115,10 @@ def hypothesis_verdict(comparison: Comparison, regressed: list[SliceDelta]) -> s
     return "no_effect" if v == "equivalent" else "cannot_tell"
 
 
-def compare_with_parent(factory: sessionmaker, name: str, min_effect: float = 0.01, cost_model: CostModel | None = None,
-                        workspace_id: str | None = None) -> ExperimentReport:
-    with factory() as s:
-        child = get(s, name, workspace_id)
-        if child.parent_id is None:
-            raise ExperimentError(f"'{name}' has no parent. Record it with --parent to compare it.")
-        parent = s.get(Experiment, child.parent_id)
-        child_run, parent_run, c_model, p_model, hypothesis = child.run_id, parent.run_id, child.model, parent.model, child.hypothesis
-        parent_name = parent.name
+def compare_runs_of(factory: sessionmaker, name: str, parent_name: str, hypothesis: str, child_run: str, parent_run: str,
+                    c_model: str | None, p_model: str | None, min_effect: float = 0.01,
+                    cost_model: CostModel | None = None) -> ExperimentReport:
+    """Compare the run of a variant with the run of its parent. The command and the API both use this."""
     base, cand = load_run(factory, parent_run), load_run(factory, child_run)
     cmp = compare_runs(base, cand, p_model, c_model, min_effect)
     regressed = [x for x in regression_scan(base.for_model(p_model), cand.for_model(c_model)) if x.regression]
@@ -132,3 +127,14 @@ def compare_with_parent(factory: sessionmaker, name: str, min_effect: float = 0.
         cost = (cost_report(cost_model, base.for_model(p_model)), cost_report(cost_model, cand.for_model(c_model)))
     return ExperimentReport(name, parent_name, hypothesis, hypothesis_verdict(cmp, regressed), cmp, regressed,
                             prompt_diff(factory, parent_run, child_run), cost, list(cmp.warnings))
+
+
+def compare_with_parent(factory: sessionmaker, name: str, min_effect: float = 0.01, cost_model: CostModel | None = None,
+                        workspace_id: str | None = None) -> ExperimentReport:
+    with factory() as s:
+        child = get(s, name, workspace_id)
+        if child.parent_id is None:
+            raise ExperimentError(f"'{name}' has no parent. Record it with --parent to compare it.")
+        parent = s.get(Experiment, child.parent_id)
+        args = (name, parent.name, child.hypothesis, child.run_id, parent.run_id, child.model, parent.model)
+    return compare_runs_of(factory, *args, min_effect=min_effect, cost_model=cost_model)

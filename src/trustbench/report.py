@@ -80,6 +80,7 @@ def case_detail(factory: sessionmaker, run_id: str, case_id: str, batch: int | N
                 "model": f"{mc.provider}:{mc.model}", "repetition": ex.repetition, "status": ex.status,
                 "input": case.input, "expected": case.expected,
                 "output": last.output if last else None, "error": last.error if last and not last.ok else None,
+                "tool_calls": last.tool_calls if last and last.ok else None, "spans": last.spans if last and last.ok else None,
                 "attempts": [{"attempt": a.attempt, "ok": a.ok, "error": a.error} for a in attempts],
                 "results": [{"evaluator": r.evaluator, "rubric_version": r.rubric_version, "passed": r.passed,
                              "score": r.score, "rationale": r.rationale, "details": r.details} for r in results],

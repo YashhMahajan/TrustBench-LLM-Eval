@@ -64,14 +64,13 @@ See `docs/ARCHITECTURE.md` section 6. Short form: dataset versions never change;
 
 ## Current state — Phase 8 (EDD), 2026-11-06
 - Branch `main`, local only. Nothing pushed. Never push without the owner's word.
-- Done and committed: M1 app targets, M2 agent evaluators, M3 config + pytest plugin + plugins, M4 experiments + cost model + prompt files, M5 CI (workflow, Action, `ci` commands), M6 example + docs (see `git log`). Dashboard pages for experiments and tool calls are the last M6 item.
-- Tests: 1057 pass. Ruff clean. Selftest 33 of 33. The workflow and Action were never run on GitHub (I-30). Docker daemon was off, so the image build is unverified (I-04). The plugin's `pytest11` entry point is registered in the venv (`pip install -e .`).
+- Done and committed: M1 app targets, M2 agent evaluators, M3 config + pytest plugin + plugins, M4 experiments + cost model + prompt files, M5 CI (workflow, Action, `ci` commands), M6 example + docs + dashboard pages (see `git log`). All six Phase 8 milestones are done.
+- Tests: 1061 pass. Ruff clean. Selftest 33 of 33. The workflow and Action were never run on GitHub (I-30). Docker daemon was off, so the image build is unverified (I-04). The plugin's `pytest11` entry point is registered in the venv (`pip install -e .`).
 - `PLAN.md` and `docs/LEARNING.md` were removed. The docs set is in `docs/`.
 
 ## Next steps
-1. M6 left: dashboard Experiments page and a tool-call / trajectory view.
-2. `/cso` scan of the whole codebase. Fix findings.
-3. Ask the owner about pushing. Also ask whether to start Docker Desktop so the image and Postgres migrations can be verified (I-02, I-04).
+1. `/cso` scan of the whole codebase. Fix findings.
+2. Ask the owner about pushing. Also ask whether to start Docker Desktop so the image and Postgres migrations can be verified (I-02, I-04).
 
 ## Open questions for the owner
 - When to push, and to which branch or remote.

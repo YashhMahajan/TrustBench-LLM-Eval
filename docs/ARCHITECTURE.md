@@ -1,7 +1,7 @@
 # TrustBench — Architecture
 
 This is the map of the code. Read it first. Then open the file you need.
-Last updated: Phase 8, milestone 6.
+Last updated: Phase 8, milestone 6 (done).
 
 ## 1. One picture
 

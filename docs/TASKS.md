@@ -64,14 +64,15 @@ Later hardening: batched writes, answer cache, resume, rate limit, composite ind
 - [ ] Not verified: the workflow and the Action on GitHub (they were never run there), the Docker job (the Docker daemon was not running here)
 - [x] Commit (local only)
 
-## M6 — Flagship example and docs  [~]
+## M6 — Flagship example and docs  [x]
 - [x] `examples/support_agent/`: tools, a scripted stand-in for the model, v0–v3, 48 cases (single-turn, multi-turn, safety, edge), `policy.yaml` with a cost model
 - [x] `make edd-demo` (and a CI job): v0 fails → failures → v1 better but blocked → v2 passes → production trace → promote → approve → export → v3. Runs with no API key.
 - [x] Tests keep the story true (scores, labels, gate verdicts, the committed dataset, the whole demo)
 - [x] `docs/EDD.md`; README section "Eval-Driven Development in 5 minutes"; example README
 - [x] Found and fixed: the current folder was not importable by the `trustbench` script (python targets in your project were not found)
-- [ ] Dashboard: Experiments page and a tool-call / trajectory view on the run detail page
-- [ ] Commit (local only)
+- [x] Dashboard: "Variant history" page (`/experiments`, API `GET /v1/experiments`) and a "Steps the app took" view in the case drawer (tool calls, results, retrieved documents)
+- [x] Demo data includes two variants. Typecheck and production build pass; the page was rendered against demo data (HTML only, not looked at in a browser).
+- [x] Commits (local only)
 
 ## Final  [ ]
 - [ ] Full `/cso` scan of the whole codebase. Fix findings. List what remains in `docs/ISSUES.md`.

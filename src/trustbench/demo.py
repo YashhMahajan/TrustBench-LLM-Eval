@@ -225,6 +225,10 @@ def make_demo(factory: sessionmaker, workspace: str = "demo", scale: float = 1.0
         result.runs["bake-off"] = go("model bake-off", ["demo:atlas-1", "demo:nova-small", "demo:nova-large"])
 
     baselines.set_baseline(factory, "main", result.runs["main"], "demo:atlas-1", ws.id)
+    from .edd.experiments import record
+    record(factory, "atlas-1", result.runs["main"], hypothesis="Baseline: what runs in production today", model="demo:atlas-1", workspace_id=ws.id)
+    record(factory, "atlas-2", result.runs["candidate"], parent="atlas-1", model="demo:atlas-2", workspace_id=ws.id,
+           hypothesis="A larger model answers grounded questions better")
     policy = ReleasePolicy(name="release", min_cases=80, critical_failures_allowed=0, latency_p95_max_seconds=4.0, cost_per_success_max_usd=0.01,
                            overall=Rule(minimum_score=0.8, maximum_regression=0.02), dimensions={"grounded_qa": Rule(minimum_score=0.8, min_cases=20)})
     main_rd, cand_rd = load_run(factory, result.runs["main"]), load_run(factory, result.runs["candidate"])

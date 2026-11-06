@@ -88,7 +88,15 @@ export interface CaseDetail {
     attempts: { attempt: number; ok: boolean; error: string | null }[]; labels: string[];
     results: { evaluator: string; rubric_version: string; passed: boolean; score: number; rationale: string; details: Record<string, unknown> }[];
     rag: { stage: string | null; evidence_in_context: boolean | null; evidence_position: number | null; explanation: string };
+    tool_calls: ToolCall[] | null; spans: AppSpan[] | null;
   }[];
+}
+export interface ToolCall { name: string; args: Record<string, unknown>; result: unknown; error: string | null }
+export interface AppSpan { kind: string; name: string; data: Record<string, unknown>; ms: number; error: string | null }
+export type ExperimentVerdict = "supported" | "refuted" | "mixed" | "no_effect" | "cannot_tell";
+export interface ExperimentRow {
+  name: string; parent: string | null; run_id: string; model: string | null; hypothesis: string; created_at: string;
+  n: number; rate: number | null; ci: Interval; verdict: ExperimentVerdict | null; change: number | null; ci_change: Interval; regressed_slices: string[];
 }
 export interface Baseline { name: string; run_id: string; model: string | null; set_at: string }
 
