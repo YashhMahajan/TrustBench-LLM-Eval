@@ -34,6 +34,10 @@ Status: Open, Planned (has a task in `docs/TASKS.md`), Accepted (a choice we mad
 | I-34 | `proposals export DATASET` uses the same text as the name of the proposals group and as the path of the base dataset | Low | Open | Refer to your dataset by its file path everywhere (as the demo does) so the base cases are included. |
 | I-35 | The example agent uses a scripted stand-in for the model, not a real model | Low | Accepted | By design: it is deterministic and needs no key. A live run against a real model is still I-01. |
 | I-36 | The new dashboard pages (Variant history, Steps the app took) were rendered to HTML and type-checked, but nobody looked at them in a browser | Low | Open | Run `trustbench demo`, `trustbench serve` and `pnpm dev`, then open /experiments and a case from an app-target run. |
+| I-37 | Evaluation runs store tool-call arguments and results and the output of your app as they are, unredacted. Production traces are redacted and can be encrypted; evaluation data is not. | Medium | Accepted | Do not put real customer data or secrets in test data or tool results. The dashboard and API show them to any key that can read the workspace. |
+| I-38 | Evaluator plugins and the pytest plugin load from any installed package through entry points, also in the server process | Low | Accepted | Install only packages you trust, as with any Python environment. A plugin cannot replace a built-in evaluator. |
+| I-39 | `docker-compose.yml` falls back to the database password `trustbench` when POSTGRES_PASSWORD is not set | Low | Accepted | The port is bound to 127.0.0.1. Set a password in `.env` (see `.env.example`) before you share the machine. |
+| I-40 | `.github/CODEOWNERS` exists, but GitHub enforces it only if "Require review from Code Owners" is on in the branch protection of main | Low | Open | A setting in the repository, to do after the first push. |
 | I-27 | The pytest plugin stores answers in `.trustbench/pytest.db` (SQLite). Two pytest processes at once (for example `pytest -n`) can lock it. | Low | Open | Use `--trustbench-db` with Postgres, or run evaluation tests in one process. |
 | I-18 | A static price table. No spend history per workspace. No budget alerts. | Low | Open | An unknown price is never counted as zero. |
 | I-26 | Judge answers are not cached, so a judge-based test needs the judge's API key even in pytest replay mode | Medium | Open | Use rule-based evaluators (`tool_call`, `trajectory`, `task_success`, `exact_match`) for free replay. Caching judge calls is a possible later task. |
@@ -50,7 +54,7 @@ Status: Open, Planned (has a task in `docs/TASKS.md`), Accepted (a choice we mad
 | I-22 | Baseline names are global across workspaces | Medium | Open | One workspace can read or replace another's baseline name. |
 | I-23 | Redaction is pattern based | Medium | Accepted | It can miss personal data that has no clear pattern. |
 | I-24 | A `python:` target runs arbitrary code with the user's rights | Medium | Accepted | By design. Only the CLI and pytest enable it. Never run a dataset or config from an untrusted source with `python:` targets. |
-| I-25 | A whole-codebase security scan (`/cso`) has not been done for Phase 8 | High | Planned | Last step of Phase 8. |
+| I-25 | A whole-codebase security scan (`/cso`) was done for Phase 8 | – | Fixed | 6 findings, all fixed (see "Security scan" below). Not a substitute for a professional audit. |
 
 ## Design notes that look like bugs but are not
 
@@ -68,3 +72,22 @@ Status: Open, Planned (has a task in `docs/TASKS.md`), Accepted (a choice we mad
 | A pytest plugin test was flaky because Python reused a stale `.pyc` of a file rewritten in the same second | A failure in a full run that passed alone |
 | The first isolation test for the span recorder passed even with a shared global recorder | A deliberate break (mutation) survived. The test app now yields mid-call. |
 | The default relevance threshold of 0.67 rejected a score of 2 of 3 | A test written for the boundary failed. The threshold is now `min_score: 2`. |
+
+## Security scan (Phase 8, `/cso`)
+
+Scope: the whole repository, with focus on app targets, the Action and workflow, the PR comment and poster, plugins and the new API routes.
+Result: 0 critical, 1 high, 3 medium, 2 low. All fixed in the same change, each with a test that was seen to fail on the old behaviour.
+
+| # | Severity | Finding | Fix |
+|---|---|---|---|
+| 1 | High | `certifi` 2026.7.22 had 2 advisories (CA bundle for TLS to providers and GitHub) | Pinned 2026.10.18 |
+| 2 | Medium | `filelock` 4.2.0 had 17 advisories (dev tooling in the lockfile) | Pinned 4.2.1 |
+| 3 | Medium | The Action put `GITHUB_TOKEN` in the environment of the step that runs your app and its dependencies | Only a separate step that runs TrustBench's own poster holds the token |
+| 4 | Medium | The Action installed TrustBench without the pinned dependency versions | `pip install -c requirements.lock` |
+| 5 | Low | The project folder was first on `sys.path`, so a stray stdlib-named file could shadow the real module | The folder is appended last |
+| 6 | Low | No CODEOWNERS for the workflow, Action, Dockerfile and lockfile | Added (needs branch protection, I-40) |
+
+Checked and clean: secrets in git history and tracked env files, `eval`/`exec`/`shell=True`/`pickle`/unsafe YAML, SQL built from strings, disabled TLS verification,
+unsafe HTML in the dashboard, `pnpm audit`, script injection and unpinned actions in the workflow, the escaping of the PR comment, the poster (repository name check,
+bot-only edits, no token in messages), and that the server cannot run `python:` or `http:` targets.
+Not done: a live penetration test of a running server, a review of the Docker image contents (the daemon was off), and anything on GitHub itself. This scan is a first pass, not a professional audit.

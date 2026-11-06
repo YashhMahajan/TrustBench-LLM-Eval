@@ -75,7 +75,7 @@ Later hardening: batched writes, answer cache, resume, rate limit, composite ind
 - [x] Commits (local only)
 
 ## Final  [ ]
-- [ ] Full `/cso` scan of the whole codebase. Fix findings. List what remains in `docs/ISSUES.md`.
+- [x] Full `/cso` scan of the whole codebase: 6 findings, all fixed (certifi and filelock pins, token isolation in the Action, pinned Action install, import shadowing, CODEOWNERS). See `docs/ISSUES.md`.
 - [ ] Update `docs/*`, `README.md`, `MEMORY.md`
 - [ ] One live run against a real provider (I-01), recorded in `docs/PERFORMANCE.md`
 - [ ] Ask the owner before any push

@@ -158,7 +158,7 @@ steps:
     with: {target: candidate, baseline-target: main}
 ```
 
-Exit code 1 blocks the merge. The same logic runs on your machine: `trustbench ci check --target candidate --baseline-target main`.
+The step that runs your app gets no token. A separate step, which runs only TrustBench's own poster, holds it. Exit code 1 blocks the merge. The same logic runs on your machine: `trustbench ci check --target candidate --baseline-target main`.
 Never use `pull_request_target` with this Action. It would run code from the pull request with write access.
 
 **Experiments.** `trustbench experiment record v2 RUN --parent v1 --hypothesis "..."` keeps the history. `trustbench experiment list` is the

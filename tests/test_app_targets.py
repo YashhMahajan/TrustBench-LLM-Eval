@@ -339,3 +339,20 @@ def test_a_target_in_the_current_folder_is_found_by_the_real_command(tmp_path):
     r = subprocess.run([str(script), "run", "--dataset", "d.jsonl", "--model", "python:local_app:answer@v1"],
                        cwd=tmp_path, env=env, capture_output=True, text=True, timeout=120)
     assert r.returncode == 0 and "100%" in r.stdout, r.stdout + r.stderr
+
+
+def test_the_project_folder_cannot_shadow_the_standard_library(tmp_path, monkeypatch):
+    """A stray stdlib-named file in a project must not replace the real module. The current folder goes LAST on the path."""
+    import importlib
+    import importlib.util
+    import sys
+    assert "antigravity" not in sys.modules      # A stdlib module nothing imports. We only look it up, never import it.
+    (tmp_path / "antigravity.py").write_text("raise SystemExit('shadowed!')\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "path", [p for p in sys.path if p not in ("", str(tmp_path))])
+    importlib.invalidate_caches()
+    import os
+    here = os.getcwd()                         # On macOS /var is a link to /private/var, so ask the system how it spells the folder.
+    PythonAppProvider()
+    assert sys.path[-1] == here and here not in sys.path[:-1]
+    assert os.path.realpath(importlib.util.find_spec("antigravity").origin) != os.path.realpath(tmp_path / "antigravity.py")

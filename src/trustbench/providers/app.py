@@ -81,7 +81,7 @@ class PythonAppProvider(Provider):
         self._fns: dict[str, object] = {}
         cwd = os.getcwd()
         if cwd not in sys.path:             # The `trustbench` script does not do this. Your project folder must be importable.
-            sys.path.insert(0, cwd)
+            sys.path.append(cwd)            # Last, not first: a stray json.py or yaml.py in a project cannot shadow the real one.
 
     def cache_salt(self, model: str) -> str | None:
         return code_fingerprint(split_version(model)[1])

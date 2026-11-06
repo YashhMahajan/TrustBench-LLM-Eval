@@ -78,15 +78,36 @@ def test_the_action_documents_every_input_and_uses_them_only_through_the_environ
     used = set(re.findall(r"inputs\.([a-z-]+)", FILES["action"].read_text()))
     assert used <= set(inputs), used - set(inputs)
     env = next(s["env"] for s in steps("action") if s.get("id") == "check")
-    for name in ("config", "target", "baseline-target", "policy", "min-effect", "post-comment"):
+    for name in ("config", "target", "baseline-target", "policy", "min-effect"):
         assert f"inputs.{name}" in " ".join(str(v) for v in env.values()), name
+    post = next(s for s in steps("action") if s.get("id") == "post")
+    assert "inputs.post-comment" in post["if"]                                   # An input in an `if`, never in a script.
 
 
-def test_the_token_reaches_only_the_step_that_posts_and_is_not_printed():
-    text = FILES["action"].read_text()
-    assert text.count("github.token") == 1
-    holder = next(s for s in steps("action") if "GITHUB_TOKEN" in s.get("env", {}))
-    assert holder["id"] == "check" and "echo" not in holder["run"]
+def test_the_step_that_runs_your_app_has_no_token_and_only_the_poster_holds_it():
+    """The check step runs `python:` targets and everything they import. Anything there could read the environment,
+    so the token must not be in it. The post step runs only TrustBench's own poster."""
+    by_id = {s.get("id"): s for s in steps("action") if s.get("id")}
+    check, post = by_id["check"], by_id["post"]
+    assert "GITHUB_TOKEN" not in check.get("env", {}) and "github.token" not in str(check)
+    assert "--no-post" in check["run"] and check["continue-on-error"] is True
+    assert post["env"] == {"GITHUB_TOKEN": "${{ github.token }}"}
+    assert FILES["action"].read_text().count("github.token") == 1
+    run_lines = [ln.strip() for ln in post["run"].splitlines() if ln.strip()]
+    assert run_lines[-1].startswith("trustbench ci post") and "echo" not in post["run"] and "env" not in post["run"].split()
+    assert "pull_request" in post["if"] and "always()" in post["if"]
+
+
+def test_a_blocked_gate_fails_the_job_after_the_comment_and_the_answers_are_saved():
+    names = [s.get("name") for s in steps("action")]
+    assert names.index("Check") < names.index("Comment on the pull request") < names.index("Enforce the verdict of the gate")
+    enforce = steps("action")[-1]
+    assert enforce["if"] == "always() && steps.check.outcome == 'failure'" and "exit 1" in enforce["run"]
+
+
+def test_the_action_installs_the_exact_dependency_versions_we_tested():
+    install = next(s for s in steps("action") if s.get("name", "").startswith("Install TrustBench"))
+    assert '-c "$ACTION_PATH/requirements.lock"' in install["run"]
 
 
 def test_the_answers_are_saved_even_when_the_gate_fails_and_the_report_is_always_uploaded():

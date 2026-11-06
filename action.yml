@@ -51,11 +51,11 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
-    - name: Install TrustBench
+    - name: Install TrustBench (the exact dependency versions we tested)
       shell: bash
       env:
         ACTION_PATH: ${{ github.action_path }}
-      run: python -m pip install --quiet "$ACTION_PATH"
+      run: python -m pip install --quiet -c "$ACTION_PATH/requirements.lock" "$ACTION_PATH"
 
     - name: Restore stored answers
       if: inputs.cache == 'true'
@@ -65,8 +65,10 @@ runs:
         key: trustbench-${{ runner.os }}-${{ github.sha }}
         restore-keys: trustbench-${{ runner.os }}-
 
+    # This step runs YOUR app (python: targets) and its dependencies. It gets NO token, so nothing it runs can read it.
     - name: Check
       id: check
+      continue-on-error: true            # The comment must be posted, and the answers saved, even when the gate says no.
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
@@ -76,18 +78,27 @@ runs:
         INPUT_BASELINE_TARGET: ${{ inputs.baseline-target }}
         INPUT_POLICY: ${{ inputs.policy }}
         INPUT_MIN_EFFECT: ${{ inputs.min-effect }}
-        INPUT_POST_COMMENT: ${{ inputs.post-comment }}
         TRUSTBENCH_DATABASE_URL: sqlite:///.trustbench-ci/ci.db
-        GITHUB_TOKEN: ${{ github.token }}
       run: |
         mkdir -p .trustbench-ci
-        args=(--config "$INPUT_CONFIG" --min-effect "$INPUT_MIN_EFFECT"
+        args=(--config "$INPUT_CONFIG" --min-effect "$INPUT_MIN_EFFECT" --no-post
               --comment-file .trustbench-ci/comment.md --result-file .trustbench-ci/result.json)
         [ -n "$INPUT_TARGET" ] && args+=(--target "$INPUT_TARGET")
         [ -n "$INPUT_BASELINE_TARGET" ] && args+=(--baseline-target "$INPUT_BASELINE_TARGET")
         [ -n "$INPUT_POLICY" ] && args+=(--policy "$INPUT_POLICY")
-        [ "$INPUT_POST_COMMENT" = "false" ] && args+=(--no-post)
         trustbench ci check "${args[@]}"
+
+    # The only step that holds the token. It runs TrustBench's own poster and nothing of yours.
+    - name: Comment on the pull request
+      id: post
+      if: always() && inputs.post-comment == 'true' && github.event_name == 'pull_request'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        [ -f .trustbench-ci/comment.md ] || exit 0
+        trustbench ci post .trustbench-ci/comment.md
 
     - name: Save stored answers
       if: always() && inputs.cache == 'true'
@@ -105,3 +116,10 @@ runs:
           ${{ inputs.working-directory }}/.trustbench-ci/comment.md
           ${{ inputs.working-directory }}/.trustbench-ci/result.json
         if-no-files-found: ignore
+
+    - name: Enforce the verdict of the gate
+      if: always() && steps.check.outcome == 'failure'
+      shell: bash
+      run: |
+        echo "The release gate blocked this change, or the check could not run. See the comment and the report."
+        exit 1
