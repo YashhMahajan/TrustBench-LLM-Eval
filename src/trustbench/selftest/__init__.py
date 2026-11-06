@@ -54,7 +54,7 @@ AREAS = ["statistics", "evaluators", "redaction", "judge", "regression", "robust
 
 
 def _load() -> None:
-    from . import checks_eval, checks_stats  # noqa: F401  (registers the checks)
+    from . import checks_agents, checks_eval, checks_stats  # noqa: F401  (registers the checks)
     try:
         from . import checks_system  # noqa: F401
     except ImportError:

@@ -80,3 +80,27 @@ def test_label_counts_use_cases_not_labels():
     counts = label_counts(collect_failures(recs), total_cases=10)
     assert [(c.label, c.cases, c.share) for c in counts] == [("wrong_answer", 3, 0.3), ("instruction_violation", 1, 0.1)]
     assert counts[0].case_ids == ["c0", "c1", "c2"]
+
+
+# ---- Agent labels -----------------------------------------------------------------------------------
+
+def test_agent_failures_get_labels_that_say_how_the_agent_failed():
+    def labels(ev, **details):
+        return classify(rec(res(ev, **details)))
+    assert labels("tool_call", bad_args=[{"tool": "refund"}]) == ["bad_args"]
+    assert labels("tool_call", missing=["refund"]) == ["wrong_tool"]
+    assert labels("tool_call", forbidden_called=["delete"]) == ["wrong_tool"]
+    assert labels("tool_call", missing=["refund"], gave_up=True) == ["wrong_tool", "gave_up"]
+    assert labels("trajectory", looped=True) == ["looped"]
+    assert labels("trajectory", gave_up=True) == ["gave_up"]
+    assert labels("trajectory") == ["wrong_tool"]
+    assert labels("task_success") == ["task_not_completed"]
+    assert labels("rag_answer_relevance") == ["irrelevant_answer"]
+    assert labels("rag_context_recall") == ["poor_retrieval"] and labels("rag_context_precision") == ["poor_retrieval"]
+    assert labels("rag_faithfulness", claims=[{"label": "contradicted"}]) == ["contradicted_claim"]
+
+
+def test_every_agent_label_is_explained_and_has_a_priority():
+    from trustbench.priority import LABEL_SEVERITY
+    for label in ("wrong_tool", "bad_args", "looped", "gave_up", "task_not_completed", "irrelevant_answer", "poor_retrieval"):
+        assert TAXONOMY[label] and label in LABEL_SEVERITY

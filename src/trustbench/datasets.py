@@ -9,6 +9,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .agents.schema import validate_agent_fields
 from .db import DatasetVersion, TestCase
 from .evaluators import EVALUATORS
 
@@ -79,6 +80,10 @@ def validate(cases: list[CaseSpec]) -> None:
         for spec in c.evaluation.get("evaluators", []):
             if spec.get("type") not in EVALUATORS:
                 raise DatasetError(f"Case {c.id}: unknown evaluator '{spec.get('type')}'.")
+        try:
+            validate_agent_fields(c.input, c.expected, c.evaluation)
+        except ValueError as e:
+            raise DatasetError(f"Case {c.id}: {e}") from e
         if not c.evaluation.get("evaluators") and not (
             "answer" in c.expected or "answers" in c.expected
         ):
@@ -121,8 +126,11 @@ def import_dataset(session: Session, name: str, cases: list[CaseSpec], workspace
 
 
 def render_prompt(inp: dict) -> str:
+    """The text a plain model gets. App targets also receive the full input (see providers/app.py)."""
     if "prompt" in inp:
         return inp["prompt"]
+    if "messages" in inp:
+        return "\n".join(f"{m['role'].capitalize()}: {m['content']}" for m in inp["messages"])
     parts = []
     if inp.get("context"):
         parts.append(f"Context:\n{inp['context']}")

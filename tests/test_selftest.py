@@ -276,3 +276,36 @@ def test_a_resume_that_starts_over_is_noticed(monkeypatch):
         return engine.resume_run(factory, run_id, provider_factory, progress, budget_usd)
     broken(monkeypatch, "trustbench.selftest.checks_system.resume_run", starts_over)
     assert "A repeated or resumed run never pays for the same model call twice" in failed_names(["invariants"])
+
+
+def test_an_agent_evaluator_that_passes_everything_is_noticed(monkeypatch):
+    from trustbench.evaluators import Outcome
+    from trustbench.selftest import checks_agents
+
+    async def always_pass(evaluation, inp, expected, output, judge=None, tool_calls=None, spans=None):
+        return [Outcome("x", "1", True, 1.0, "")]
+    monkeypatch.setattr(checks_agents, "evaluate", always_pass)
+    assert not by_name(run_selftest(quick=True))["Agent evaluators agree with a gold set"].passed
+
+
+def test_a_recorder_shared_between_cases_is_noticed(monkeypatch):
+    from trustbench.providers import recorder
+    shared = recorder.Recording()
+
+    class Global:
+        def get(self):
+            return shared
+
+        def set(self, rec):
+            return None
+
+        def reset(self, token):
+            return None
+    monkeypatch.setattr(recorder, "_current", Global())
+    assert not by_name(run_selftest(quick=True))["Records of concurrent app calls never mix"].passed
+
+
+def test_a_cache_key_that_ignores_the_code_version_is_noticed(monkeypatch):
+    from trustbench.selftest import checks_agents
+    monkeypatch.setattr(checks_agents, "code_fingerprint", lambda version: "same")
+    assert not by_name(run_selftest(quick=True))["The answer cache key follows the code version"].passed

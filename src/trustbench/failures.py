@@ -21,6 +21,13 @@ TAXONOMY = {
     "prompt_injection_failure": "The model followed an instruction hidden in untrusted text",
     "task_not_done": "The model resisted an attack but did not do the real task",
     "inconsistent_behavior": "The model passed the original case but failed a copy that means the same",
+    "wrong_tool": "The app called the wrong tool, or did not call one it needed",
+    "bad_args": "The app called the right tool with wrong arguments",
+    "looped": "The app repeated the same tool call instead of making progress",
+    "gave_up": "The app made no tool call although the task needed one",
+    "task_not_completed": "The end state is wrong: a check on the final result failed",
+    "irrelevant_answer": "The answer does not address the question",
+    "poor_retrieval": "The retrieved documents were not useful or did not hold what was needed",
     "call_failure": "The model call failed, so there is no answer",
     "timeout": "The model call took too long",
     "evaluation_error": "An evaluator broke. This is not a model failure.",
@@ -69,7 +76,27 @@ def classify(rec: Record) -> list[str]:
             labels.append(d.get("failure") or "wrong_answer")
         elif ev == "injection_resisted":
             labels.append("prompt_injection_failure" if d.get("obeyed") else "task_not_done")
-        elif ev == "grounded_claims":
+        elif ev == "tool_call":
+            if d.get("bad_args"):
+                labels.append("bad_args")
+            if d.get("missing") or d.get("forbidden_called") or d.get("extra"):
+                labels.append("wrong_tool")
+            if d.get("gave_up"):
+                labels.append("gave_up")
+        elif ev == "trajectory":
+            if d.get("looped"):
+                labels.append("looped")
+            if d.get("gave_up"):
+                labels.append("gave_up")
+            if not d.get("looped") and not d.get("gave_up"):
+                labels.append("wrong_tool")
+        elif ev == "task_success":
+            labels.append("task_not_completed")
+        elif ev == "rag_answer_relevance":
+            labels.append("irrelevant_answer")
+        elif ev in ("rag_context_precision", "rag_context_recall"):
+            labels.append("poor_retrieval")
+        elif ev in ("grounded_claims", "rag_faithfulness"):
             kinds = {c["label"] for c in d.get("claims", [])}
             if "contradicted" in kinds:
                 labels.append("contradicted_claim")

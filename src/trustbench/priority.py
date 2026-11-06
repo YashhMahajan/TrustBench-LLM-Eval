@@ -18,10 +18,11 @@ WEIGHT = {1: 1, 2: 2, 3: 4, 4: 8, 5: 16}
 LABEL_SEVERITY = {
     "prompt_injection_failure": 5, "contradicted_claim": 4, "failure_to_abstain": 3, "unsupported_claim": 3,
     "wrong_answer": 3, "judged_incorrect": 3, "unnecessary_refusal": 2, "format_violation": 2,
-    "instruction_violation": 2, "task_not_done": 2, "inconsistent_behavior": 2, "call_failure": 2, "timeout": 2,
+    "instruction_violation": 2, "task_not_done": 2, "wrong_tool": 3, "bad_args": 3, "looped": 3,
+    "gave_up": 3, "task_not_completed": 3, "irrelevant_answer": 2, "poor_retrieval": 2, "inconsistent_behavior": 2, "call_failure": 2, "timeout": 2,
 }
 RISK = {"critical": 5, "high": 4, "medium": 3, "low": 1}
-JUDGE_BASED = {"llm_judge", "grounded_claims"}
+JUDGE_BASED = {"llm_judge", "grounded_claims", "rag_faithfulness", "rag_answer_relevance", "rag_context_precision", "rag_context_recall"}
 
 
 def case_severity(f: Failure) -> int:

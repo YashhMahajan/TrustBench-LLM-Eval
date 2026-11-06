@@ -111,3 +111,4 @@ async def evaluate(evaluation: dict, inp: dict, expected: dict, output: str, jud
 
 # These imports register more evaluators. They must stay at the end of the file.
 from . import eval_calibration, eval_grounded, eval_injection, eval_judge, eval_numeric, eval_reference, eval_schema  # noqa: E402,F401
+from . import agents  # noqa: E402,F401   (tool_call, trajectory, task_success, rag_*)
