@@ -27,6 +27,8 @@ class Ctx:
     output: str
     spec: dict
     judge: Any = None  # A trustbench.judge.Judge, when one is configured.
+    tool_calls: list = field(default_factory=list)   # App targets: what the app called, in order.
+    spans: list = field(default_factory=list)        # App targets: timed steps (retrieval, tool, ...).
 
 
 Evaluator = Callable[[Ctx], "Outcome | Awaitable[Outcome]"]
@@ -88,7 +90,8 @@ def rule(ctx: Ctx) -> Outcome:
     return Outcome("rule", "1", not failures, 0.0 if failures else 1.0, "; ".join(failures) or "All rules hold.")
 
 
-async def evaluate(evaluation: dict, inp: dict, expected: dict, output: str, judge=None) -> list[Outcome]:
+async def evaluate(evaluation: dict, inp: dict, expected: dict, output: str, judge=None,
+                   tool_calls: list | None = None, spans: list | None = None) -> list[Outcome]:
     """Run each evaluator in the test case. Default: exact match on the answer.
 
     An evaluator that raises an error gives a failed Outcome with details.error set.
@@ -99,7 +102,7 @@ async def evaluate(evaluation: dict, inp: dict, expected: dict, output: str, jud
     for spec in specs:
         name = spec["type"]
         try:
-            result = EVALUATORS[name](Ctx(inp, expected, output, spec, judge))
+            result = EVALUATORS[name](Ctx(inp, expected, output, spec, judge, tool_calls or [], spans or []))
             outcomes.append(await result if inspect.isawaitable(result) else result)
         except Exception as e:
             outcomes.append(Outcome(name, "?", False, 0.0, f"Evaluator error: {e}", {"error": True}))

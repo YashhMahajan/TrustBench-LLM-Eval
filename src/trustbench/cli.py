@@ -51,6 +51,8 @@ def run(
     from . import quality
     from .datasets import resolve_path
     from .engine import RunInterrupted, run_eval
+    from .providers import allow_app_targets
+    allow_app_targets()                      # Only the CLI and pytest may run python: and http: targets.
     specs = model or detect_models()
     if not specs:
         console.print("[red]No model found.[/red] Set ANTHROPIC_API_KEY, OPENAI_API_KEY or GEMINI_API_KEY, "
@@ -100,6 +102,8 @@ def _stopped(e) -> None:
 def resume(run_id: str, budget: float = typer.Option(None, help="A new budget in USD for the part that is left")):
     """Finish a run that stopped (Ctrl-C, a crash or a budget). Finished cases are not run again."""
     from .engine import RunInterrupted, resume_run
+    from .providers import allow_app_targets
+    allow_app_targets()
     factory = _factory()
     try:
         with _progress_bar() as update:

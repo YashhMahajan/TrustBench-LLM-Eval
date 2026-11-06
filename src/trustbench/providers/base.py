@@ -12,6 +12,7 @@ class GenRequest:
     temperature: float = 0.0
     max_tokens: int = 1024
     timeout: float = 60.0
+    input: dict | None = None      # The full case input. App targets read it; model providers ignore it.
 
 
 @dataclass
@@ -21,6 +22,8 @@ class GenResponse:
     output_tokens: int | None
     latency_ms: float
     model_id: str
+    tool_calls: list[dict] | None = None     # What an app target called, in order.
+    spans: list[dict] | None = None          # Timed steps of an app target (retrieval, tool, ...).
 
 
 class ProviderError(Exception):
@@ -35,6 +38,12 @@ class Provider(ABC):
     # False for fake providers: their answers come from how they are set up, not from the model name,
     # so the same request can give a different answer and a stored answer would be wrong.
     cacheable: bool = True
+
+    def cache_salt(self, model: str) -> str | None:
+        """Extra text for the answer cache key. None means: do not cache this model.
+
+        Model providers need none. App targets return a code fingerprint (see providers/app.py)."""
+        return ""
 
     @abstractmethod
     async def generate(self, req: GenRequest) -> GenResponse: ...

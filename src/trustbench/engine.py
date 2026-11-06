@@ -77,10 +77,13 @@ def _config_hash(provider: str, model: str, params: dict, system: str | None) ->
 
 
 def cache_key(provider: str, model: str, prompt: str, system: str | None, temperature: float,
-              max_tokens: int, repetition: int) -> str:
+              max_tokens: int, repetition: int, salt: str = "") -> str:
     """Everything that can change an answer is in the key. The repetition is in it too,
     so repeated runs of one case stay separate calls: we need them to measure variance."""
-    raw = json.dumps([provider, model, prompt, system, temperature, max_tokens, repetition])
+    parts = [provider, model, prompt, system, temperature, max_tokens, repetition]
+    if salt:                       # Only app targets have a salt, so the keys of model answers stay as they were.
+        parts.append(salt)
+    raw = json.dumps(parts)
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
@@ -316,10 +319,11 @@ async def _execute(factory, run_id: str, jobs: list[Job], specs: list[str], opt:
         if opt.cache:
             for ex_id, case, spec, rep in jobs:
                 pname, model = split_spec(spec)
-                if not providers[pname].cacheable:
+                salt = providers[pname].cache_salt(model) if providers[pname].cacheable else None
+                if salt is None:
                     continue
                 keys[ex_id] = cache_key(pname, model, render_prompt(case.input), opt.system_prompt,
-                                        opt.temperature, opt.max_tokens, rep)
+                                        opt.temperature, opt.max_tokens, rep, salt)
             with factory() as s:
                 for part in _chunks(set(keys.values())):
                     cached.update({c.key: c for c in s.scalars(select(ResponseCache).where(ResponseCache.key.in_(part)))})
@@ -333,7 +337,7 @@ async def _execute(factory, run_id: str, jobs: list[Job], specs: list[str], opt:
             pname, model = split_spec(spec)
             provider, limiter = providers[pname], limiters[pname]
             req = GenRequest(model=model, prompt=render_prompt(case.input), system=opt.system_prompt,
-                             temperature=opt.temperature, max_tokens=opt.max_tokens, timeout=opt.timeout)
+                             temperature=opt.temperature, max_tokens=opt.max_tokens, timeout=opt.timeout, input=case.input)
             async with sem:
                 hit = cached.get(keys.get(ex_id, ""))
                 if hit is None and opt.budget_usd is not None and spent >= opt.budget_usd:
@@ -347,6 +351,7 @@ async def _execute(factory, run_id: str, jobs: list[Job], specs: list[str], opt:
                     if hit is not None:
                         text, model_id, tin, tout, latency, cost = (
                             hit.text, hit.provider_model_id or model, hit.input_tokens, hit.output_tokens, hit.latency_ms, 0.0)
+                        calls, spans = hit.tool_calls, hit.spans
                         r, err, retryable = True, None, False
                         counts["cached"] += 1
                     else:
@@ -355,6 +360,7 @@ async def _execute(factory, run_id: str, jobs: list[Job], specs: list[str], opt:
                             g = await asyncio.wait_for(provider.generate(req), opt.timeout)
                             r, err, retryable = True, None, False
                             text, model_id, tin, tout, latency = g.text, g.model_id, g.input_tokens, g.output_tokens, g.latency_ms
+                            calls, spans = g.tool_calls, g.spans
                             cost = estimate_cost(model_id, tin, tout)
                             spent += cost or 0.0
                         except asyncio.TimeoutError:
@@ -365,11 +371,13 @@ async def _execute(factory, run_id: str, jobs: list[Job], specs: list[str], opt:
                             r, err, retryable = None, repr(e), False
                     if r is not None:
                         attempts.append(dict(attempt=attempt, ok=True, output=text, provider_model_id=model_id,
-                                             input_tokens=tin, output_tokens=tout, latency_ms=latency, cost_usd=cost))
-                        outcomes = await evaluate(case.evaluation, case.input, case.expected, text, judge)
+                                             input_tokens=tin, output_tokens=tout, latency_ms=latency, cost_usd=cost,
+                                             tool_calls=calls, spans=spans))
+                        outcomes = await evaluate(case.evaluation, case.input, case.expected, text, judge,
+                                                  tool_calls=calls, spans=spans)
                         row = None if hit is not None or ex_id not in keys else dict(
                             key=keys[ex_id], provider=pname, model=model, text=text, provider_model_id=model_id,
-                            input_tokens=tin, output_tokens=tout, latency_ms=latency)
+                            input_tokens=tin, output_tokens=tout, latency_ms=latency, tool_calls=calls, spans=spans)
                         counts["done"] += 1
                         writer.add(_Finished(ex_id, attempts, outcomes, "done", row))
                         tick()

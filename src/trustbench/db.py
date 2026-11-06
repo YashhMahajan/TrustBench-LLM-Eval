@@ -133,6 +133,8 @@ class ModelResponse(Base):
     output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     latency_ms: Mapped[float] = mapped_column(Float)
     cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    tool_calls: Mapped[list | None] = mapped_column(Json, nullable=True)   # App targets only: what the app called.
+    spans: Mapped[list | None] = mapped_column(Json, nullable=True)        # App targets only: timed steps.
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
 
 
@@ -405,4 +407,6 @@ class ResponseCache(Base):
     input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     latency_ms: Mapped[float] = mapped_column(Float)
+    tool_calls: Mapped[list | None] = mapped_column(Json, nullable=True)
+    spans: Mapped[list | None] = mapped_column(Json, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)

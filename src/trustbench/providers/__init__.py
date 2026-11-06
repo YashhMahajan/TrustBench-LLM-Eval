@@ -2,10 +2,11 @@ import os
 
 from .base import GenRequest, GenResponse, Provider, ProviderError, estimate_cost
 from .http import AnthropicProvider, OpenAICompatibleProvider
+from .app import HttpAppProvider, PythonAppProvider
 from .mock import SMOKE_ANSWERS, MockProvider
 
 __all__ = ["GenRequest", "GenResponse", "Provider", "ProviderError", "estimate_cost",
-           "get_provider", "split_spec"]
+           "get_provider", "split_spec", "allow_app_targets", "app_targets_allowed"]
 
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
 
@@ -15,6 +16,21 @@ def split_spec(spec: str) -> tuple[str, str]:
     if not model:
         raise ValueError(f"Model '{spec}' must look like provider:model, for example openai:gpt-4o-mini.")
     return provider, model
+
+
+# App targets run your code or call your URL. Only the CLI and the pytest plugin turn them on.
+# The API server and the worker never do, so an API key can never make the server run code.
+_APP_TARGETS = False
+_APP_NAMES = ("python", "http")
+
+
+def allow_app_targets(allowed: bool = True) -> None:
+    global _APP_TARGETS
+    _APP_TARGETS = allowed
+
+
+def app_targets_allowed() -> bool:
+    return _APP_TARGETS
 
 
 def get_provider(provider: str) -> Provider:
@@ -34,6 +50,10 @@ def get_provider(provider: str) -> Provider:
     if provider == "local":
         url = os.environ.get("TRUSTBENCH_LOCAL_BASE_URL", "http://localhost:11434/v1")
         return OpenAICompatibleProvider("local", os.environ.get("TRUSTBENCH_LOCAL_API_KEY"), url)
+    if provider in _APP_NAMES:
+        if not _APP_TARGETS:
+            raise ValueError(f"The '{provider}:' target runs your own code or URL. It is allowed only from the CLI and pytest, not from the server.")
+        return PythonAppProvider() if provider == "python" else HttpAppProvider()
     if provider == "mock":
         return MockProvider(SMOKE_ANSWERS)
-    raise ValueError(f"Unknown provider '{provider}'. Use anthropic, openai, gemini, local or mock.")
+    raise ValueError(f"Unknown provider '{provider}'. Use anthropic, openai, gemini, local, mock, python or http.")

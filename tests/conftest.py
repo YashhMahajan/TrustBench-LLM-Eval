@@ -23,3 +23,12 @@ def cases():
 def version(factory, cases):
     with factory() as s:
         return import_dataset(s, "t", cases)
+
+
+@pytest.fixture(autouse=True)
+def _app_targets_off():
+    """python: and http: targets are off by default. A test that turns them on must not affect the next test."""
+    from trustbench.providers import allow_app_targets
+    allow_app_targets(False)
+    yield
+    allow_app_targets(False)
