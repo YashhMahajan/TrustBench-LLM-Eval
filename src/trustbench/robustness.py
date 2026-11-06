@@ -1,7 +1,7 @@
 """How stable is a model when the input changes in a way that should not matter?
 
 We pair each variant with its original (metadata.source_case) and compare the results.
-The four numbers are kept apart because they answer different questions:
+We keep the four numbers apart, because they answer different questions:
   break rate      the model passed the original. How often does it fail the variant?
   degradation     how much lower is the pass rate on variants than on originals?
   consistency     how often do original and variant get the same result?

@@ -12,7 +12,7 @@ class GenRequest:
     temperature: float = 0.0
     max_tokens: int = 1024
     timeout: float = 60.0
-    input: dict | None = None      # The full case input. App targets read it; model providers ignore it.
+    input: dict | None = None      # The full case input. App targets read it. Model providers ignore it.
 
 
 @dataclass
@@ -35,8 +35,8 @@ class ProviderError(Exception):
 
 class Provider(ABC):
     name: str
-    # False for fake providers: their answers come from how they are set up, not from the model name,
-    # so the same request can give a different answer and a stored answer would be wrong.
+    # False for fake providers. Their answers depend on how we set them up, not on the model name.
+    # So the same request can give a different answer, and a stored answer would be wrong.
     cacheable: bool = True
 
     def cache_salt(self, model: str) -> str | None:

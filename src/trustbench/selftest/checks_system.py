@@ -428,7 +428,7 @@ def no_paid_work_twice(ctx: Ctx):
     with factory() as s:
         v = import_dataset(s, "d", cases)
     provider = MockProvider({"Question": "yes"})
-    provider.cacheable = True                                # A real provider is cached. The mock is not, unless we say so.
+    provider.cacheable = True                                # The cache stores the answers of a real provider. The mock is not, unless we say so.
     first = run_eval(factory, v.id, ["mock:m"], RunOptions(backoff=0), provider_factory=lambda n: provider)
     calls = provider.calls
     second = run_eval(factory, v.id, ["mock:m"], RunOptions(backoff=0), provider_factory=lambda n: provider)

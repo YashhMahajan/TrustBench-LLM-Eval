@@ -45,7 +45,7 @@ def test_worst_transform_and_task_need_enough_pairs():
     r = robustness_report(recs)
     assert r.worst_transform.name == "typos" and r.worst_transform.variant_rate == pytest.approx(0.2)
     assert r.worst_task.name == "math"
-    assert "formatting" in [g.name for g in r.by_transform]       # Listed, but too small to be named worst.
+    assert "formatting" in [g.name for g in r.by_transform]       # Listed, but too small to name as the worst.
     assert next(g for g in r.by_transform if g.name == "formatting").pairs < MIN_SLICE
 
 
@@ -62,7 +62,7 @@ def test_failed_calls_and_unscored_cases():
     recs.append(Record(case_id="c98", passed=True))
     recs.append(Record(case_id="c98~typos", status="skipped", metadata={"source_case": "c98", "transform": "typos"}))
     r = robustness_report(recs)
-    assert r.pairs == 11 and r.break_rate.k == 1    # A failed call on the variant counts as a break. A skipped one is left out.
+    assert r.pairs == 11 and r.break_rate.k == 1    # A failed call on the variant counts as a break. The report leaves out a skipped one.
 
 
 def test_no_pairs_gives_a_clear_warning():

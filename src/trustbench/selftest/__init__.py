@@ -1,10 +1,10 @@
 """The TrustBench self-test: does TrustBench measure correctly?
 
-A reliability tool must show that its own measurements are valid. Each check here builds data where
-we KNOW the truth, runs the real TrustBench code on it, and compares the result with what theory or
-construction says it must be. For example: a 95% interval must contain the truth about 95% of the time.
+A reliability tool must show that its own measurements are valid. Each check here builds data where we KNOW the truth.
+It runs the real TrustBench code on that data. Then it compares the result with what theory or construction says it must be.
+For example, a 95% interval must contain the truth about 95% of the time.
 
-Targets are fixed from theory before the numbers are seen. A check that fails is a finding, not a flaw of the check.
+We fix the targets from theory before we see the numbers. A check that fails is a finding, not a flaw of the check.
 Run it with: trustbench selftest        (add --quick for a faster run with fewer simulations)
 """
 

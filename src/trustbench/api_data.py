@@ -190,7 +190,7 @@ def register(app: FastAPI, need, db) -> None:
 
     @app.post("/v1/gate/preview")
     async def gate_preview(request: Request, p: Principal = Depends(need("read")), f: sessionmaker = Depends(db)):
-        """Check a run against a policy and show the result. Nothing is saved."""
+        """Check a run against a policy and show the result. The route saves nothing."""
         try:
             body = await request.json()
             run_id, model = resolve(f, p, body["run"])

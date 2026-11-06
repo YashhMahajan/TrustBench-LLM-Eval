@@ -89,7 +89,7 @@ def compare(
         console.print(f"[yellow]{w}[/yellow]")
 
 
-gate_app = typer.Typer(help="Decide if a run may be released.", no_args_is_help=True)
+gate_app = typer.Typer(help="Decide if a run may go to release.", no_args_is_help=True)
 app.add_typer(gate_app, name="gate")
 
 
@@ -141,7 +141,7 @@ app.add_typer(baseline_app, name="baseline")
 
 @baseline_app.command("set")
 def baseline_set(name: str, run_id: str, model: str = typer.Option(None, help="Model of the run to use")):
-    """Use a run as the baseline called NAME. An old baseline with this name is replaced."""
+    """Use a run as the baseline called NAME. This replaces an old baseline with the same name."""
     from . import baselines
     try:
         baselines.set_baseline(get_factory(), name, run_id, model)
@@ -347,7 +347,7 @@ app.add_typer(prop_app, name="proposals")
 def proposals_generate(
     run_id: str,
     model: str = typer.Option(None, help="Model whose failures to use, if the run has several"),
-    judge: str = typer.Option(None, help="provider:model that also writes new questions. Their answers are not verified."),
+    judge: str = typer.Option(None, help="provider:model that also writes new questions. Nobody verifies their answers."),
     per_case: int = typer.Option(2, help="Proposals for each failed case"),
 ):
     """Propose new test cases based on the failed cases of a run."""
@@ -515,7 +515,7 @@ def failures(
 
 @app.command()
 def frontier(
-    runs: list[str] = typer.Argument(..., help="One or more run ids. All models in them are compared."),
+    runs: list[str] = typer.Argument(..., help="One or more run ids. The command compares all models in them."),
     min_quality: float = typer.Option(None, help="Minimum pass rate, for example 0.9"),
     max_cost: float = typer.Option(None, help="Maximum USD per successful task"),
     max_p95: float = typer.Option(None, help="Maximum P95 latency in seconds"),
@@ -572,7 +572,7 @@ def export_report(
     fmt: str = typer.Option("md", "--format", help="md or json"),
     model: str = typer.Option(None, help="One model only, if the run has several"),
 ):
-    """Write a report of a run that you can send to someone: numbers with intervals, failures, decisions, how to repeat it."""
+    """Write a report of a run that you can send to someone. It has numbers with intervals, failures, decisions, and how to repeat the run."""
     import json
 
     from .report_export import build_report, to_markdown

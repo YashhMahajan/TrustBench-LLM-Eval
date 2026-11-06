@@ -1,7 +1,6 @@
 """A small stored summary of each run, so a list of runs does not load every run.
 
-Loading a run reads all its rows. Listing 30 runs that way is slow. We compute the summary once,
-when a run ends or is scored again, and keep it in the run row.
+Loading a run reads all its rows. Listing 30 runs that way is slow. We compute the summary once, when a run ends or when we score it again. We keep it in the run row.
 """
 
 from sqlalchemy.orm import sessionmaker

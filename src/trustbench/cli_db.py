@@ -19,7 +19,7 @@ def _engine():
 
 @db_app.command("upgrade")
 def db_upgrade():
-    """Bring the database to the newest schema. A new database is created. Other commands do this by themselves."""
+    """Bring the database to the newest schema. TrustBench creates a new database. Other commands do this by themselves."""
     from . import migrate
     try:
         what = migrate.ensure_schema(_engine())
@@ -63,7 +63,7 @@ def db_stamp(revision: str = typer.Argument("head")):
 
 
 @db_app.command("sql")
-def db_sql(url: str = typer.Option("postgresql+psycopg://user:password@localhost/trustbench", help="Only the type of the database is used. Nothing is connected.")):
+def db_sql(url: str = typer.Option("postgresql+psycopg://user:password@localhost/trustbench", help="The command uses only the type of the database. It connects to nothing.")):
     """Print the SQL that creates the schema, for a database administrator."""
     from . import migrate
     typer.echo(migrate.schema_sql(url))

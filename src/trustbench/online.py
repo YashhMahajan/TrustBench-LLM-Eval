@@ -1,12 +1,12 @@
 """Online evaluation: check a sample of real traffic while it happens.
 
-We have no reference answer for real traffic, so only evaluators that work without one are allowed:
-  rule, json_schema, contains   measured: a rule finds the problem, no guess is involved
-  grounded_claims, llm_judge    estimated: a judge model guesses, and a judge can be wrong
+We have no reference answer for real traffic. So we allow only evaluators that work without one:
+  rule, json_schema, contains   measured: a rule finds the problem, so no guess enters.
+  grounded_claims, llm_judge    estimated: a judge model guesses, and a judge can be wrong.
 Every result says which kind it is. A dashboard must not mix the two.
 
 Privacy: the redacted text waits in an ENCRYPTED task until a worker has handled it. The task is
-emptied when it is done. Text is kept in the trace only if the workspace turned store_content on.
+emptied when it is done. The trace keeps text only if the workspace turned store_content on.
 """
 
 import asyncio
@@ -28,7 +28,7 @@ KIND_JOB = "evaluate_trace"
 
 
 def check_specs(specs: list[dict], judge: str | None) -> str | None:
-    """Return a problem text, or None when the evaluator list can be used."""
+    """Return a problem text, or None when you can use the evaluator list."""
     for i, spec in enumerate(specs):
         kind = spec.get("type") if isinstance(spec, dict) else None
         if kind not in ONLINE_EVALUATORS:
@@ -54,14 +54,14 @@ def sanitize_details(details: dict) -> dict:
 
 
 def run_online_evaluation(factory: sessionmaker, trace_pk: int, texts: dict, provider_factory=None) -> int:
-    """Evaluate one trace and store the results. Safe to run twice: old results are replaced. Returns the number of results."""
+    """Evaluate one trace and store the results. Safe to run twice. A second run replaces old results. Returns the number of results."""
     from .engine import make_judge
     from .providers import get_provider
 
     with factory() as s:
         row = s.get(ProductionTrace, trace_pk)
         if row is None:
-            return 0                                   # The trace was deleted in the meantime.
+            return 0                                   # Someone deleted the trace in the meantime.
         ws = s.get(Workspace, row.workspace_id)
         policy, workspace_id = policy_of(ws), row.workspace_id
     specs = []

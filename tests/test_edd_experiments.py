@@ -28,7 +28,7 @@ def dataset(factory):
 
 
 def make_run(factory, dataset, right, system_prompt=None):
-    """A run where `right(i)` says whether case i is answered correctly."""
+    """A run where X says whether the app answers case i correctly."""
     answers = {f"Q{i}?": (f"A{i}" if right(i) else "wrong") for i in range(N)}
     provider = MockProvider(answers)
     return run_eval(factory, dataset.id, ["mock:m"], RunOptions(backoff=0, system_prompt=system_prompt), provider_factory=lambda n: provider)

@@ -77,7 +77,7 @@ def test_the_command_exit_codes_and_json(monkeypatch):
     assert bad.exit_code == 1 and "FAIL" in bad.output
 
 
-# ---- The whole-system checks: they pass on the real code and fail on code that is broken on purpose ----------------
+# ---- The whole-system checks: they pass on the real code and fail on code that we break on purpose ----------------
 
 SYSTEM = ["regression", "robustness", "integrity", "invariants", "privacy"]
 
@@ -203,7 +203,7 @@ def test_a_model_change_without_a_migration_is_noticed():
         Base.metadata.tables["jobs"]._columns.remove(Base.metadata.tables["jobs"].c.forgotten)
 
 
-# ---- The remaining checks: each must also fail when the code it watches is broken ---------------------------------
+# ---- The remaining checks: each must also fail when the code that it watches is wrong ---------------------------------
 
 def test_a_paired_interval_that_is_too_narrow_or_too_sure_is_noticed(monkeypatch):
     broken(monkeypatch, "trustbench.selftest.checks_stats.paired_binary_ci",
@@ -250,7 +250,7 @@ def test_a_robustness_report_that_finds_nothing_is_noticed(monkeypatch):
 
 
 def test_every_check_has_a_test_that_breaks_the_code_it_watches():
-    """A check that was never seen to fail proves nothing. Add a sabotage test when you add a check."""
+    """A check that never failed proves nothing. Add a sabotage test when you add a check."""
     from pathlib import Path
     from trustbench import selftest
     selftest._load()

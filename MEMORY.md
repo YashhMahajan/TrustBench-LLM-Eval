@@ -1,80 +1,106 @@
-# MEMORY.md — TrustBench project memory
+# MEMORY.md: TrustBench project memory
 
-Read this first in every session. It holds what to remember about the project.
-Long-term memory changes rarely. Short-term memory is updated at the end of each work session.
-Related docs: `docs/PRD.md` (what and why), `docs/ARCHITECTURE.md` (where), `docs/DATA.md` (data), `docs/TASKS.md` (work), `docs/ISSUES.md` (limits).
+Read this file first in every session. It holds what you must remember about the project.
+Long-term memory changes rarely. Update short-term memory at the end of each work session.
+Related docs: `docs/PRD.md` (what and why), `docs/ARCHITECTURE.md` (where), `docs/DATA.md` (data), `docs/TASKS.md` (work), `docs/ISSUES.md` (limits), `docs/EDD.md` (how to use it).
 
 ---
 
 # Long-term memory
 
 ## What this project is
-TrustBench evaluates LLMs and LLM apps. A user sets an API key (or points at their own function or service) and gets pass rates with intervals, a release gate, failure analysis and a production loop.
-It ships to engineers for their own workflows. It is also the owner's showcase project for a resume and interviews. Quality and clarity matter more than feature count.
+
+TrustBench evaluates LLMs and LLM apps. A user sets an API key, or points at their own function or service. TrustBench then gives pass rates with intervals, a release gate, failure analysis and a production loop.
+It ships to engineers for their own workflows. It is also the owner's showcase project for a resume and for interviews. Quality and clarity matter more than the number of features.
 
 ## Stack
-Python 3.12, FastAPI, SQLAlchemy and Alembic (Postgres in production, SQLite in tests), Pydantic, Typer and Rich, httpx (no vendor SDKs), Next.js dashboard (pnpm), pytest, ruff.
-Statistics are hand-written in `stats.py` (no numpy or scipy).
+
+- Python 3.12, FastAPI, SQLAlchemy and Alembic, Pydantic, Typer and Rich.
+- httpx for HTTP. The project uses no vendor SDKs.
+- PostgreSQL in production. SQLite in tests.
+- A Next.js dashboard (pnpm).
+- pytest and ruff.
+- We wrote the statistics by hand in `stats.py`. The project uses no numpy or scipy.
 
 ## Commands
-| Do | Run |
+
+| Task | Command |
 |---|---|
-| All tests | `python -m pytest -q` (about 30 s) |
-| Lint | `ruff check src tests` |
+| Run all tests | `python -m pytest -q` (about 70 seconds) |
+| Lint | `ruff check src tests examples` |
 | Self-test | `trustbench selftest` (`--quick` is faster) |
-| Try with no key | `trustbench run --model mock:smoke` |
+| Check the writing rules | `make writing` |
+| Try it with no key | `trustbench run --model mock:smoke` |
 | Test your own function | `trustbench run --model python:pkg.mod:fn@v1` |
+| See the whole EDD story | `make edd-demo` |
 
 ## Rules of the project (the owner's wishes)
-1. **Never push to GitHub** (or open a PR) unless the owner says so. Commit locally only.
-2. Commit messages are written like a human. No AI trailers (`docs/ARCHITECTURE.md` section 8).
-3. Keep the code clean and easy to navigate. New code goes in a package (`agents/`, `edd/`, `providers/`, ...), not the flat root. One concern in each file. A short docstring at the top.
-4. Docs and comments use short sentences (ASD-STE100 style). One idea in each sentence.
-5. Every new behaviour has tests. Every new selftest check has a test that breaks the code it watches. After writing a test, break the code on purpose (mutation) and see it fail.
-6. Keep `docs/` current: update `TASKS.md` at each milestone, `ISSUES.md` when a limit is found, `DATA.md` when the data changes, `ARCHITECTURE.md` when a module is added.
-7. End of Phase 8: run `/cso` over the whole codebase. Fix the findings.
-8. Do not add interview-prep or learning-guide files (`LEARNING.md` was removed on the owner's request). The owner will ask for them later.
-9. Be honest about what was not verified (see `docs/ISSUES.md`, I-01 to I-05).
 
-## Design decisions (and why)
-| Decision | Why |
+1. Push to GitHub only when the owner says so. The owner said so for the Phase 8 work after the writing rewrite.
+2. Write commit messages like a human. Do not add AI trailers.
+3. Keep the code clean and easy to navigate. Put new code in a package (`agents/`, `edd/`, `ci/`, `providers/`), not in the flat root. Use one concern in each file. Start each file with a short docstring.
+4. Follow the writing rules in all project text. This covers docs, docstrings, comments and command help text. Use up to 20 words in an instruction and up to 25 in other sentences. Use the active voice. Do not use semicolons or contractions. A test (`tests/test_writing_rules.py`) enforces this.
+5. Give every new behaviour a test. Give every new selftest check a test that breaks the code it watches. After you write a test, break the code on purpose and make sure the test fails.
+6. Keep `docs/` current. Update `TASKS.md` at each milestone. Update `ISSUES.md` when you find a limit. Update `DATA.md` when the data changes. Update `ARCHITECTURE.md` when you add a module.
+7. Do not add interview-prep or learning-guide files. The owner will ask for them later.
+8. Say clearly what we did not verify. See `docs/ISSUES.md`, items I-01 to I-05 and I-30.
+
+## Design decisions and the reasons
+
+| Decision | Reason |
 |---|---|
-| App targets are `Provider` subclasses (`providers/app.py`) | The engine, cache, resume, rate limit and budget work unchanged. A small diff. |
-| Cache key has a salt: version label or git commit. Dirty tree without a label is not cached. | A stale answer would silently corrupt an experiment comparison. |
+| App targets are `Provider` subclasses (`providers/app.py`) | The engine, cache, resume, rate limit and budget work without change. The diff stays small. |
+| The cache key has a salt: a version label or the git commit | A stale answer would silently corrupt an experiment comparison. |
+| TrustBench does not cache a dirty tree without a label | We cannot tell if the code is the same. |
 | `python:` and `http:` targets are off unless the CLI or pytest turns them on | A server must never run user code. A test walks the server modules. |
-| The pytest plugin replays from the cache by default | A normal `pytest` run must be free and fast. Live calls need `--trustbench-live`. |
+| The pytest plugin replays stored answers by default | A normal `pytest` run must be free and fast. Live calls need `--trustbench-live`. |
 | A plugin cannot replace a built-in evaluator | A third-party package must not change how existing scores work. |
-| An evaluator error is reported and left out, never counted as a model failure | A broken checker says nothing about the model. |
-| Unknown cost is `incomplete`, never zero | Zero would make an unpriced model look free. |
-| Tool-call matching uses a search, not a greedy pass | A loose expectation listed first must not take the call that a strict one needs. |
+| TrustBench reports a broken evaluator and leaves it out | A broken checker says nothing about the model. |
+| An unknown cost is `incomplete`, never zero | Zero would make an unpriced model look free. |
+| Tool-call matching uses a search, not a greedy pass | A loose expectation that comes first must not take the call that a strict one needs. |
+| The Action gives the token only to the step that posts the comment | The step that runs your app must not be able to read the token. |
 
 ## Invariants
-See `docs/ARCHITECTURE.md` section 6. Short form: dataset versions never change; a run stores its config; responses and scores are in separate tables; a retry is a new row; incomplete runs say so.
+
+`docs/ARCHITECTURE.md` section 6 lists them. In short:
+- A dataset version never changes.
+- A run stores its config.
+- Responses and scores live in separate tables.
+- A retry is a new row.
+- An incomplete run says so.
 
 ## Gotchas
-- `Evaluator` modules import at the bottom of `evaluators.py` (they need `register`). Keep that order.
+
+- `evaluators.py` imports the evaluator modules at the end of the file. They need `register`. Keep that order.
 - `tests/conftest.py` turns app targets off after every test. A test that needs them calls `allow_app_targets()`.
-- `trustbench run` for a sync Python function: the function runs inside the event loop. Keep app functions fast or make them `async`.
-- `sentence_claims` ignores sentences under 3 words. Short test outputs skip claim checks.
-- The shell's working directory can drift into `src/`. Use absolute paths.
+- A synchronous Python target runs inside the event loop. Keep the function fast, or make it `async`.
+- `sentence_claims` ignores sentences of fewer than 3 words. Short test outputs skip the claim checks.
+- The shell can drift into `src/`. Use absolute paths.
+- zsh does not split an unquoted `$VARIABLE` into words. Use `xargs` or quote the globs.
 
 ---
 
 # Short-term memory (update each session)
 
-## Current state — Phase 8 (EDD), 2026-11-06
-- Branch `main`, local only. Nothing pushed. Never push without the owner's word.
-- Done and committed: M1 app targets, M2 agent evaluators, M3 config + pytest plugin + plugins, M4 experiments + cost model + prompt files, M5 CI (workflow, Action, `ci` commands), M6 example + docs + dashboard pages (see `git log`). All six Phase 8 milestones are done.
-- `/cso` scan done: 6 findings, all fixed (docs/ISSUES.md "Security scan"). Report kept locally in `.gstack/security-reports/` (git-ignored).
-- Tests: 1064 pass. Ruff clean. Selftest 33 of 33. The workflow and Action were never run on GitHub (I-30). Docker daemon was off, so the image build is unverified (I-04). The plugin's `pytest11` entry point is registered in the venv (`pip install -e .`).
-- `PLAN.md` and `docs/LEARNING.md` were removed. The docs set is in `docs/`.
+## Current state: Phase 8 (EDD), 2026-11-06
+
+- Branch `main`. All six Phase 8 milestones are done.
+- The `/cso` security scan is done. We fixed all 6 findings (see `docs/ISSUES.md`, "Security scan").
+- We rewrote all project text to follow the writing rules and added `scripts/writing_check.py` and a test for it.
+- The owner approved the push after the rewrite. Check `git status` and `git log origin/main..HEAD` for the real state.
+- We never ran the workflow and the Action on GitHub (I-30). The Docker daemon did not run, so we did not verify the image build (I-04).
 
 ## Next steps
-1. Ask the owner about pushing. Also ask whether to start Docker Desktop so the image and Postgres migrations can be verified (I-02, I-04).
+
+1. Run the workflow on GitHub and fix what it shows.
+2. Turn on "Require review from Code Owners" in the branch protection of main (I-40).
+3. Ask the owner to start Docker Desktop. Then verify the image and the Postgres migrations (I-02, I-04).
+4. Run one live evaluation against a real model and record it in `docs/PERFORMANCE.md` (I-01).
 
 ## Open questions for the owner
-- When to push, and to which branch or remote.
-- Whether to move old flat modules into packages (a bigger cleanup, risky, needs its own commit).
+
+- Do we move the old flat modules into packages? This is a bigger cleanup. It carries risk. It needs its own commit.
 
 ## Session log
-- 2026-11-06: Ran /cso over the codebase and fixed 6 findings (dependency CVEs, token isolation in the Action, pinned Action install, import shadowing, CODEOWNERS). Built the flagship example (`make edd-demo`), `docs/EDD.md`, README section. Found that the current folder was not importable by the real `trustbench` script and fixed it. Built M5 (CI check, comment with escaping, poster, workflow, Action; found and fixed a double-escaping bug via the snapshot and a flaky stale-.pyc test). Built M4 (experiments, cost model reproducing the $380k/$100k example, prompt diff). Built M3. Removed PLAN.md (merged into docs) and LEARNING.md. Compared with Fareed's `ai-eval-system` (a notebook tutorial: receipt auditor, cost model, V0 to V1). Planned Phase 8. Engineering review accepted four changes (targets as providers, cache key salt, CLI-only python targets, pytest replay). Built M1 and M2. Switched to Sonnet 5.5 at medium effort. The owner asked for the five docs and this file, and for clean structure.
+
+- 2026-11-06: We compared TrustBench with the `ai-eval-system` notebook of Fareed Khan. We planned Phase 8 and built all six milestones. We added the five PM docs. We ran `/cso` and fixed 6 findings. We rewrote all project text to follow the writing rules.

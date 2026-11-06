@@ -1,4 +1,4 @@
-"""Split an answer into claims. Each claim is checked on its own later."""
+"""Split an answer into claims. A later step checks each claim on its own."""
 
 import re
 
@@ -14,7 +14,7 @@ def sentence_claims(text: str) -> list[str]:
 
 
 async def extract_claims(judge: Judge, text: str) -> list[str]:
-    """Ask the judge for atomic factual claims. Opinions and questions are skipped."""
+    """Ask the judge for atomic factual claims. The function skips opinions and questions."""
     if not text.strip():
         return []
     prompt = (

@@ -135,7 +135,7 @@ def test_a_key_that_sends_too_much_is_told_to_wait(api):
     assert [get(client, k1).status_code for _ in range(3)] == [200, 200, 200]
     r = get(client, k1)
     assert r.status_code == 429 and int(r.headers["retry-after"]) >= 1 and "too many requests" in r.json()["error"]
-    assert get(client, k2).status_code == 200                      # Another key is not affected.
+    assert get(client, k2).status_code == 200                      # Another key stays free.
     assert client.get("/v1/health").status_code == 200             # The health check is free.
     clock.t += 61
     assert get(client, k1).status_code == 200
@@ -153,7 +153,7 @@ def test_repeated_wrong_keys_lock_the_address_for_a_while(api):
     clock = Clock()
     client = TestClient(create_app(factory, rate_limit=100, bad_key_limit=3, clock=clock))
     assert [get(client, "tb_wrong").status_code for _ in range(3)] == [401, 401, 401]
-    locked = get(client, k1)                                       # Even a good key is refused from a locked address.
+    locked = get(client, k1)                                       # The server refuses even a good key from a locked address.
     assert locked.status_code == 429 and "wrong keys" in locked.json()["error"] and int(locked.headers["retry-after"]) >= 1
     clock.t += 61
     assert get(client, k1).status_code == 200
@@ -189,7 +189,7 @@ def test_the_json_report_has_the_same_content(reported):
     assert data["meta"]["run_id"] == rid and data["models"]["mock:m"]["summary"]["overall"]["n"] == 3
     assert data["decisions"][0]["policy"] == "gate" and data["models"]["mock:m"]["failures"]["failed_cases"] == 1
     import json
-    json.dumps(data)                                                   # It can be written as JSON.
+    json.dumps(data)                                                   # You can write it as JSON.
 
 
 def test_report_for_one_model_and_for_unknown_models(factory, version):

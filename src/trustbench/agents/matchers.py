@@ -25,7 +25,7 @@ def is_matcher(m) -> bool:
 
 
 def validate_matcher(m) -> None:
-    """Raise ValueError if a matcher is malformed. A dataset with a bad matcher must not load."""
+    """Raise ValueError when a matcher is wrong. A dataset with a bad matcher must not load."""
     if not is_matcher(m):
         return
     main = KEYS & set(m)
@@ -82,7 +82,7 @@ def equal(a, b) -> bool:
 
 
 def matches(m, value) -> tuple[bool, str]:
-    """(ok, why not). `value` is what the app passed. A missing value is not passed to this function."""
+    """(ok, why not). `value` is what the app passed. Do not pass a missing value to this function."""
     if not is_matcher(m):
         return (True, "") if equal(m, value) else (False, f"expected {m!r}, got {value!r}")
     kind = next(iter(KEYS & set(m)))
@@ -112,7 +112,7 @@ def matches(m, value) -> tuple[bool, str]:
 
 
 def match_args(expected: dict, actual: dict) -> list[str]:
-    """Problems when the call arguments do not fit. Extra arguments in `actual` are allowed."""
+    """Problems when the call arguments do not fit. `actual` may have extra arguments."""
     problems = []
     for key, m in expected.items():
         if key not in actual:

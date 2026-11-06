@@ -70,7 +70,7 @@ def failure_text(f: Failure) -> str:
 def cluster_vectors(vectors: list[Vector], threshold: float = 0.3, max_rounds: int = 5) -> list[list[int]]:
     """Centroid clustering. Each item joins the closest cluster if it is similar enough. Repeats until stable.
 
-    The order of the input does not change the result, because items are visited in a fixed order.
+    The order of the input does not change the result, because the code visits items in a fixed order.
     """
     order = sorted(range(len(vectors)), key=lambda i: (-len(vectors[i]), i))
     clusters: list[list[int]] = []

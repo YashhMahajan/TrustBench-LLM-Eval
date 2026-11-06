@@ -26,7 +26,7 @@ class Ctx:
     expected: dict
     output: str
     spec: dict
-    judge: Any = None  # A trustbench.judge.Judge, when one is configured.
+    judge: Any = None  # A trustbench.judge.Judge, when you configure one.
     tool_calls: list = field(default_factory=list)   # App targets: what the app called, in order.
     spans: list = field(default_factory=list)        # App targets: timed steps (retrieval, tool, ...).
 
@@ -114,4 +114,4 @@ from . import eval_calibration, eval_grounded, eval_injection, eval_judge, eval_
 from . import agents  # noqa: E402,F401   (tool_call, trajectory, task_success, rag_*)
 from .edd.plugins import load_evaluator_plugins  # noqa: E402
 
-load_evaluator_plugins()                     # Evaluators from other packages. A broken plugin is skipped, not fatal.
+load_evaluator_plugins()                     # Evaluators from other packages. TrustBench skips a broken plugin. It is not fatal.

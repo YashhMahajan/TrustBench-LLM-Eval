@@ -2,8 +2,8 @@
 
 A model is on the Pareto frontier when no other model is at least as good on every chosen
 measure and better on one. Models on the frontier are the only sensible choices.
-A model with an unknown value (for example, no price) cannot be compared on that measure,
-so it is listed apart. We never treat an unknown cost as zero.
+We cannot compare a model with an unknown value (for example, no price) on that measure.
+The list shows it apart. We never treat an unknown cost as zero.
 """
 
 from dataclasses import dataclass, field

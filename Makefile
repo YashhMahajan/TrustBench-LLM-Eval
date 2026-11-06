@@ -1,5 +1,5 @@
 # Common tasks. `make help` lists them.
-.PHONY: help install test lint selftest check edd-demo dashboard
+.PHONY: help install test lint writing selftest check edd-demo dashboard
 
 help:            ## Show this list
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed -E 's/:.*## /\t/'
@@ -11,12 +11,15 @@ test:            ## Run the tests
 	python -m pytest -q
 
 lint:            ## Check the code
-	ruff check src tests examples
+	ruff check src tests examples scripts
+
+writing:         ## Check the writing rules in docs, comments and help text
+	python scripts/writing_check.py README.md MEMORY.md docs/*.md examples/support_agent/README.md $$(git ls-files '*.py')
 
 selftest:        ## Check that TrustBench measures correctly
 	trustbench selftest
 
-check: lint test selftest   ## Everything CI runs for the Python code
+check: lint writing test selftest   ## Everything CI runs for the Python code
 
 edd-demo:        ## The Eval-Driven Development story on a support agent (no API key)
 	python examples/support_agent/build_dataset.py

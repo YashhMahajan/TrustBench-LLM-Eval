@@ -5,7 +5,7 @@
   3. v2 adds a knowledge base and a human escalation. The gate lets it ship.
   4. Production finds a gap that no test covered. We turn it into a test and fix it (v3).
 
-Everything runs in a temporary database. Nothing is left behind.
+Everything runs in a temporary database. The demo leaves nothing behind.
 """
 
 import json

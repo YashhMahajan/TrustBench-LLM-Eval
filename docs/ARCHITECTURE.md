@@ -51,9 +51,9 @@ Packages first. Then the flat modules in `src/trustbench/`, grouped by job.
 | Path | Job |
 |---|---|
 | `providers/` | `base.py` (interface, prices), `http.py` (Anthropic, OpenAI-compatible), `mock.py`, `app.py` (python:/http: targets), `recorder.py` (tool calls and spans) |
-| `agents/` | Evaluators for agents: `eval_tool_call.py`, `eval_trajectory.py`, `eval_task_success.py`, `eval_rag_judged.py`; `matchers.py` (expected values); `schema.py` (load-time checks) |
+| `agents/` | Evaluators for agents. Files: `eval_tool_call.py`, `eval_trajectory.py`, `eval_task_success.py`, `eval_rag_judged.py`. `matchers.py` holds expected values. `schema.py` holds load-time checks. |
 | `ci/` | Pull request checks: `comment.py` (Markdown comment, escaping, size cap), `github.py` (post or update), `check.py` (run, gate, comment). The Action `action.yml` and `.github/workflows/ci.yml` are in the repo root. |
-| `edd/` | EDD workflow: `config.py` (trustbench.yaml), `plugins.py` (evaluator plugins), `pytest_plugin.py` (evaluations in pytest), `experiments.py` (variants, hypotheses, verdicts), `costmodel.py` (dollars per year with an interval), `runner.py` (run steps shared by the CLI, CI and pytest) |
+| `edd/` | EDD workflow. `config.py` reads trustbench.yaml. `plugins.py` loads evaluator plugins. `pytest_plugin.py` runs evaluations in pytest. `experiments.py` holds variants, hypotheses and verdicts. `costmodel.py` gives dollars per year with an interval. `runner.py` holds the run steps that the CLI, CI and pytest share. |
 | `selftest/` | 33 checks that prove TrustBench measures correctly: `checks_stats.py`, `checks_eval.py`, `checks_agents.py`, `checks_system.py` |
 | `suites/` | Ten built-in datasets (`smoke`, `factual`, `grounded`, `hallucination`, `injection`, `safety`, `abstention`, `calibration`, `structured_output`, `instruction_following`) |
 | `migrations/` | Alembic versions 0001–0006 |
@@ -108,9 +108,9 @@ Moving old modules into packages is a possible later cleanup. It needs its own c
 3. Each score records its evaluator name and rubric version.
 4. Raw outputs and scores are in different tables. We can rescore with no model call.
 5. Each retry is a new row. A retry never replaces a failure.
-6. A run with skipped cases is "incomplete". An unknown price is never counted as zero.
+6. A run with skipped cases is "incomplete". TrustBench never counts an unknown price as zero.
 7. Each release decision records its policy and evidence.
-8. A broken evaluator is reported and left out. It is never counted as a model failure.
+8. TrustBench reports a broken evaluator and leaves it out. It never counts it as a model failure.
 9. The cache key of a model answer does not change when we add features (`test_cache_keys_of_model_answers_are_unchanged`).
 10. The server never runs `python:` or `http:` targets (`test_no_server_module_turns_app_targets_on`).
 
@@ -122,7 +122,7 @@ Moving old modules into packages is a possible later cleanup. It needs its own c
   Use the Action in a `pull_request` workflow, never `pull_request_target`.
 
 - API keys have roles (read, write, admin) and can expire. Workspaces isolate data.
-- Production content is redacted before it is stored. Stored content can be encrypted (Fernet).
+- TrustBench redacts production content before it stores it. You can encrypt stored content (Fernet).
 - App targets run your code or call your URL. Only the CLI and the pytest plugin turn them on (`providers.allow_app_targets`).
   The API, the worker and online evaluation never do. A server-side judge cannot be a `python:` target.
 - The server has no TLS of its own. Use a proxy. See `docs/ISSUES.md` for known limits.
@@ -136,15 +136,15 @@ These came from the owner at the start of the project and still hold.
 | Database | PostgreSQL. Users start it with `docker compose up -d postgres`. |
 | Queue | Redis for distributed workers (`jobs.py`). Tests use `tests/fake_redis.py`. |
 | Dashboard | Next.js as a separate server. It talks to the API. |
-| Tests | In-memory SQLite and the mock provider. No API key and no running service is needed. |
-| Access | Multi-tenant keys with roles. Stored content can be encrypted. |
+| Tests | In-memory SQLite and the mock provider. They need no API key and no running service. |
+| Access | Multi-tenant keys with roles. You can encrypt stored content. |
 | Providers | Plain HTTP with httpx. No vendor SDKs. |
-| Git | Commit messages are written like a human. No AI trailers. |
+| Git | Write commit messages like a human. Do not add AI trailers. |
 
 ## 9. Conventions
 
 - One concern in each file. A short docstring at the top says what it does and how to use it.
-- Short sentences in docs and comments (ASD-STE100 style): procedures up to 20 words, descriptions up to 25 words, active voice, one instruction in each sentence, one word for one meaning, vertical lists for complex text.
+- Follow the writing rules in docs and comments. Use up to 20 words in an instruction. Use up to 25 words in other sentences. Use the active voice. Give one instruction in each sentence. Use one word for one meaning. Use vertical lists for complex text. Run `make writing` to check these rules.
 - Comments explain *why*, only where the reason is not clear from the code.
 - Every behaviour has a test. Every new check has a test that breaks the code it watches.
 - No push to the remote until the owner approves.

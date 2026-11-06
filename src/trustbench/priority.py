@@ -2,7 +2,7 @@
 
 priority = severity weight x frequency x exposure x detectability
 
-All four factors are shown. Nothing is hidden in one opaque number.
+The report shows all four factors. Nothing hides in one opaque number.
   severity       1 to 5. From the case (metadata.severity, risk or critical) or from the failure type, whichever is higher.
   weight         grows fast with severity, so a rare severe failure can outrank a frequent small one.
   frequency      share of all cases that fail this way (in percent).

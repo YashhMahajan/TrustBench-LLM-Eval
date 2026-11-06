@@ -90,7 +90,7 @@ def test_pairing_gives_a_tighter_interval_than_ignoring_it():
     base = [1 if rng.random() < 0.6 else 0 for _ in range(200)]
     better = [1 if (x or rng.random() < 0.05) else 0 for x in base]  # B is A plus a few fixes.
     _, lo, hi = paired_bootstrap(base, better)
-    assert lo > 0  # The small gain is clear because the same cases are compared.
+    assert lo > 0  # The small gain is clear because the test compares the same cases.
 
 
 def test_paired_scores_must_match_in_length():
@@ -147,7 +147,7 @@ def test_benjamini_hochberg():
         True, True, False, False, False, False, False, False, False, False]
     assert benjamini_hochberg([0.5, 0.9]) == [False, False]
     assert benjamini_hochberg([]) == []
-    # A group of small p-values is kept together, even when the largest is above its own line.
+    # The test keeps a group of small p-values together, even when the largest is above its own line.
     assert benjamini_hochberg([0.01, 0.04, 0.03], q=0.05) == [True, True, True]
 
 

@@ -1,10 +1,10 @@
 """Run a dataset against models. Two modes: generate and re-score.
 
 How a run works, and why:
-  1. All executions are created with one bulk insert (not one INSERT for each).
+  1. One bulk insert creates all executions (not one INSERT for each).
   2. Calls to the model run at the same time, up to `concurrency`, and at most `rpm` start each minute.
   3. Results go to the database in batches (write-behind). One transaction saves many results.
-     A result is saved whole or not at all, so a stopped run never holds half an answer.
+     The run saves a result whole or not at all. So a stopped run never holds half an answer.
   4. A run that stops (Ctrl-C, a crash, a budget) keeps every saved result. `resume_run` does the rest.
 """
 
@@ -51,7 +51,7 @@ class RunOptions:
     name: str | None = None
     judge: str | None = None  # provider:model of the judge, if a case needs one
     rpm: float | None = None  # Most calls to start in one minute, for each provider. None: no limit.
-    cache: bool = True        # Use a stored answer when the same request was made before.
+    cache: bool = True        # Use a stored answer when you made the same request before.
 
 
 @dataclass
@@ -64,7 +64,7 @@ class Progress:
 
 
 class RunInterrupted(Exception):
-    """The user stopped the run. Saved results are kept. Use resume_run to finish it."""
+    """The user stopped the run. The run keeps saved results. Use resume_run to finish it."""
 
     def __init__(self, run_id: str):
         super().__init__(f"Run {run_id} was stopped. Finish it with: trustbench resume {run_id}")
@@ -221,7 +221,7 @@ def resume_run(
 ) -> str:
     """Finish a run that stopped. It runs the executions that have no result yet, with the options of the run.
 
-    Pass budget_usd to set a new budget for the part that is left."""
+    Pass budget_usd to set a new budget for the rest of the run."""
     try:
         asyncio.run(_resume(factory, run_id, provider_factory, progress, budget_usd))
     except KeyboardInterrupt:
@@ -288,7 +288,7 @@ async def _resume(factory, run_id, provider_factory, progress, budget_usd) -> No
     if budget_usd is not None:
         opt.budget_usd = budget_usd
     elif opt.budget_usd is not None:
-        opt.budget_usd = max(opt.budget_usd - prior_cost, 0.0)    # What is left of the old budget.
+        opt.budget_usd = max(opt.budget_usd - prior_cost, 0.0)    # What remains of the old budget.
     jobs: list[Job] = [(ex, case, f"{mc.provider}:{mc.model}", rep) for ex, case, mc, rep in rows]
     with factory.begin() as s:
         for part in _chunks(j[0] for j in jobs):
@@ -367,7 +367,7 @@ async def _execute(factory, run_id: str, jobs: list[Job], specs: list[str], opt:
                             r, err, retryable = None, "Timeout", True
                         except ProviderError as e:
                             r, err, retryable, retry_after = None, str(e), e.retryable, e.retry_after
-                        except Exception as e:  # Unknown errors are recorded. They do not stop the run.
+                        except Exception as e:  # The run records unknown errors. They do not stop the run.
                             r, err, retryable = None, repr(e), False
                     if r is not None:
                         attempts.append(dict(attempt=attempt, ok=True, output=text, provider_model_id=model_id,

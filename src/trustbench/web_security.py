@@ -104,9 +104,9 @@ def _in(ip: str, nets: list) -> bool:
 def client_ip(peer: str | None, forwarded_for: str | None, trusted: list) -> str:
     """The address of the real client.
 
-    X-Forwarded-For is a header that anyone can write. We believe it only when the connection comes from a proxy
-    that we trust, and then we read it from the right: each trusted proxy adds the address it saw to the end,
-    so the first address from the right that is not a proxy is the client. Entries to its left are the client's own claims."""
+    X-Forwarded-For is a header that anyone can write. We believe it only when the connection comes from a proxy that we trust.
+    Then we read it from the right. Each trusted proxy adds the address that it saw to the end.
+    So the first address from the right that is not a proxy is the client. Entries to its left are claims of the client."""
     peer = peer or "unknown"
     if not trusted or not forwarded_for or not _in(peer, trusted):
         return peer

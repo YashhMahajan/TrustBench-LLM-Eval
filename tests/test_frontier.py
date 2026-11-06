@@ -45,7 +45,7 @@ def test_unknown_cost_is_not_treated_as_zero():
     paid = c("paid", 0.90, 0.02, 1.0)
     front = pareto([free, paid])
     assert names(front) == ["paid"] and free.unknown == ["cost"] and not free.on_frontier
-    assert names(pareto([free, paid], ("quality", "latency"))) == ["unpriced"]    # Latency and quality are known for both.
+    assert names(pareto([free, paid], ("quality", "latency"))) == ["unpriced"]    # We know latency and quality for both.
 
 
 def test_overlapping_quality_intervals_are_flagged():

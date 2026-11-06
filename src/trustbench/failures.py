@@ -1,6 +1,6 @@
 """Name what went wrong. A score says that a case failed. A label says how.
 
-The labels come from rules on the evaluator results, so each label can be explained.
+The labels come from rules on the evaluator results. So we can explain each label.
 A case can have several labels. A label is a description of the symptom, not a proof of the cause.
 """
 

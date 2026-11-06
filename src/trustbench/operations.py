@@ -15,7 +15,7 @@ class Operations:
     timeout_rate: float | None
     latency_ms: dict                 # p50, p95, p99 of successful calls.
     latency_n: int
-    cost_usd: float | None           # Model cost of the run. None when no price is known.
+    cost_usd: float | None           # Model cost of the run. None when we know no price.
     cost_per_success_usd: float | None
     priced_share: float | None       # Share of successful calls that had a price.
 

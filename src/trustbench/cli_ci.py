@@ -61,7 +61,7 @@ def ci_check(
         res = run_check(get_factory(), cfg, target=target, baseline_target=baseline_target, policy_path=policy, min_effect=min_effect)
     except (ConfigError, CheckError, ValueError) as e:
         console.print(f"[red]{e}[/red]")
-        raise typer.Exit(2)                 # 2: the check could not run. 1 is reserved for "the gate says no".
+        raise typer.Exit(2)                 # Exit code 2 means the check could not run. Exit code 1 means "the gate says no".
     comment_file.write_text(res.comment)
     result_file.write_text(json.dumps(res.to_dict(), indent=2))
     if os.environ.get("GITHUB_STEP_SUMMARY"):          # Visible on every run, also for forks that cannot comment.
@@ -81,7 +81,7 @@ def ci_comment(run: str = typer.Argument(..., help="Run id (or baseline name)"),
                policy: Path = typer.Option(None, help="Release policy file"),
                out: Path = typer.Option(None, help="Write the comment here (default: print it)"),
                min_effect: float = typer.Option(0.01)):
-    """Build the pull request comment for a run that already exists. Nothing is posted."""
+    """Build the pull request comment for a run that already exists. The command posts nothing."""
     from . import baselines
     from .gate import evaluate_gate
     from .ci.comment import build_comment

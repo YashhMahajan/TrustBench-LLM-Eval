@@ -22,13 +22,13 @@ Run times change from machine to machine. Counts of SQL statements do not, so th
 
 1. **Measure first.** Each fix above began with a profile, not with a guess. The slow line was often not the one we expected.
 2. **Count work, not seconds.** A test that says "at most 60 statements" fails on every machine for the same reason.
-3. **Batch the database.** Round trips cost more than rows. Write-behind keeps one transaction for many results. A result is saved whole or not at all.
+3. **Batch the database.** Round trips cost more than rows. Write-behind keeps one transaction for many results. TrustBench saves a result whole or not at all.
 4. **Index what you query, and no more.** Four composite indexes (migration 0003) replace single-column ones they cover. Tests read `EXPLAIN QUERY PLAN`
    and fail on a table scan or on an index that another index already covers.
 5. **Never repeat paid work.** The answer cache (key = provider, model, prompt, system prompt, temperature, max tokens, repetition) makes a repeated run free.
    `trustbench resume` finishes a stopped run without calling a finished case again. The self-test checks both.
-6. **Be kind to the provider.** `--rpm` spaces calls, `Retry-After` is obeyed (capped at 60 s), retries use jitter, connections close at the end.
-7. **Pay at the right time.** The overview is computed once when a run ends. Old runs get it the first time they are listed.
+6. **Be kind to the provider.** `--rpm` spaces the calls. TrustBench obeys `Retry-After` (up to 60 s). Retries use jitter. Connections close at the end.
+7. **Pay at the right time.** TrustBench computes the overview once, when a run ends. Old runs get it the first time you list them.
 
 ## How the engine writes
 
@@ -37,7 +37,7 @@ asyncio tasks (concurrency N) ──> _Finished(attempts, scores, status) ──
                                                                           every 50 results or 2 seconds, and on Ctrl-C
 ```
 
-If the process dies, at most the last buffer is lost. Those cases still have the status `pending`, so `trustbench resume RUN_ID` runs them.
+If the process dies, TrustBench loses at most the last buffer. Those cases still have the status `pending`, so `trustbench resume RUN_ID` runs them.
 
 ## What we did not do
 

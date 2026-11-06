@@ -1,7 +1,7 @@
 """The pull request comment. Pure functions: results in, Markdown out.
 
-Everything that came from a model or from your test data is untrusted text. It is escaped before it goes into
-the comment (`safe`), so a model cannot add a link, an image, HTML or an @mention to your pull request.
+Treat everything from a model or from your test data as untrusted text. `safe` escapes it before it goes into
+the comment. So a model cannot add a link, an image, HTML or an @mention to your pull request.
 """
 
 import re
@@ -26,8 +26,8 @@ VERDICT = {"meaningful_improvement": "better", "improvement_below_threshold": "s
 
 
 # What can turn text into something else in a GitHub comment: HTML (< > &), links and images ([ ]), mentions and
-# emails (@), issue references (#), table cells (|), code (`), math ($) and escapes (\\). Each is replaced once, in one pass.
-# Bare web addresses become links by themselves, so "://" and "www." are broken up too.
+# emails (@), issue references (#), table cells (|), code (`), math ($) and escapes (\\). The code replaces each one once, in one pass.
+# Bare web addresses become links by themselves. So the code also breaks up "://" and "www.".
 _ESCAPES = {ord(c): f"&#{ord(c)};" for c in "&<>|`[]@#$\\"}
 _AUTOLINK = re.compile(r"(?i)://|\bwww\.")
 
@@ -36,12 +36,12 @@ def safe(text, limit: int = 200) -> str:
     """Make untrusted text harmless in a Markdown table cell: one line, no HTML, link, image, mention, code or math."""
     t = re.sub(r"\s+", " ", str(text if text is not None else "")).strip()
     if len(t) > limit:
-        t = t[:limit].rstrip() + "…"                         # Cut first, then escape, so an escape is never cut in half.
+        t = t[:limit].rstrip() + "…"                         # Cut first, then escape. Then the code never cuts an escape in half.
     return _AUTOLINK.sub(lambda m: "&#58;//" if m.group(0) == "://" else "www&#46;", t.translate(_ESCAPES))
 
 
 def code(text, limit: int = 120) -> str:
-    """Untrusted text for inside a `code span`. Nothing in a code span is interpreted, so only the backtick and line breaks matter."""
+    """Untrusted text for inside a `code span`. A code span shows its text as it is. So only the backtick and line breaks matter."""
     t = re.sub(r"\s+", " ", str(text if text is not None else "")).strip().replace("`", "'")
     return t if len(t) <= limit else t[:limit].rstrip() + "…"
 

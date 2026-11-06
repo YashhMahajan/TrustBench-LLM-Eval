@@ -148,7 +148,7 @@ def _exact_judge_model() -> tuple[float, float]:
     """The true agreement and the true weighted kappa of the simulated judge, from the exact joint distribution.
 
     The human label is uniform on 0..3. The judge repeats it with chance 0.7. Otherwise it moves one step up or down
-    with equal chance, and a step off the scale stays put. This is written out by hand, not with the code under test.
+    with equal chance, and a step off the scale stays put. We wrote this out by hand, not with the code under test.
     """
     joint = [[0.0] * 4 for _ in range(4)]
     for h in range(4):

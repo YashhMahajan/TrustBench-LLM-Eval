@@ -6,8 +6,7 @@ A package can add evaluators without changing TrustBench. In its pyproject.toml:
     my_checks = "my_package.trustbench_evaluators"
 
 TrustBench imports that module when it starts. The module registers its evaluators with
-`from trustbench.evaluators import register`. A broken plugin never stops TrustBench: the error is kept in
-PLUGIN_ERRORS and shown by `trustbench plugins`. A plugin can add evaluators but it cannot replace a built-in one.
+`from trustbench.evaluators import register`. A broken plugin never stops TrustBench. PLUGIN_ERRORS keeps the error, and `trustbench plugins` shows it. A plugin can add evaluators but it cannot replace a built-in one.
 """
 
 import importlib.metadata
@@ -15,7 +14,7 @@ import logging
 
 log = logging.getLogger("trustbench")
 GROUP = "trustbench.evaluators"
-PLUGIN_ERRORS: dict[str, str] = {}      # entry point name -> why it was not loaded
+PLUGIN_ERRORS: dict[str, str] = {}      # entry point name -> why TrustBench did not load it
 LOADED: list[str] = []
 
 

@@ -1,4 +1,4 @@
-"""The pull request comment. It is built from untrusted text, so what must not appear matters as much as what must."""
+"""The pull request comment. It uses untrusted text, so what must not appear matters as much as what must."""
 
 import re
 from pathlib import Path

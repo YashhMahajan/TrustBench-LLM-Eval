@@ -1,8 +1,8 @@
-"""Paraphrases written by a model. They are only used when they pass two checks.
+"""Paraphrases written by a model. We use them only when they pass two checks.
 
 Check 1 (no model): numbers, quoted words and words that decide the answer must stay.
 Check 2 (a second model call): a judge must confirm that both texts ask for the same thing.
-A paraphrase that fails a check is dropped, because it might change what the right answer is.
+We drop a paraphrase that fails a check, because it might change the right answer.
 """
 
 import re

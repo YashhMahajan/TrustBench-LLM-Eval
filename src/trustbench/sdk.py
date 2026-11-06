@@ -10,9 +10,9 @@
         t.output = call_model(question, docs)
 
 Safety rules of this library:
-  - It never raises an error into your code. If the server is down, traces are dropped and counted.
-  - It never slows your code: traces go to a background thread that sends them in batches.
-  - It removes personal data and secrets in your process, before anything is sent (redact=True).
+  - It never raises an error into your code. If the server is down, it drops the traces and counts them.
+  - It never slows your code. A background thread sends the traces in batches.
+  - It removes personal data and secrets in your process, before it sends anything (redact=True).
   - Without an API key it does nothing.
 """
 
@@ -143,7 +143,7 @@ class TrustBench:
         return t.trace_id
 
     def observe(self, name: str | None = None, model: str | None = None, capture_input: bool = False, capture_output: bool = False):
-        """Decorator. Records time and errors of a function. Arguments and results are NOT recorded unless you ask."""
+        """Decorator. Records time and errors of a function. The SDK does NOT record arguments and results unless you ask."""
         def wrap(fn):
             label = name or fn.__name__
 

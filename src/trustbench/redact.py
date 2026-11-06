@@ -1,6 +1,6 @@
-"""Remove personal data and secrets from text before it is stored.
+"""Remove personal data and secrets from text before we store it.
 
-Each match is replaced by a marker such as [EMAIL]. We count the matches, never keep them.
+A marker such as [EMAIL] replaces each match. We count the matches, never keep them.
 Redaction by patterns is not perfect. It does not find names or addresses in free text.
 Treat it as one layer. The default is also to store no content at all (see dataprotect).
 """
@@ -8,7 +8,7 @@ Treat it as one layer. The default is also to store no content at all (see datap
 import re
 from collections import Counter
 
-# Order matters. Secrets first, so that a token is not read as a phone number.
+# Order matters. Secrets first, so that the code does not read a token as a phone number.
 _PATTERNS: list[tuple[str, re.Pattern]] = [
     ("PRIVATE_KEY", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S)),
     ("SECRET", re.compile(r"\b(?:sk-[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{30,}|xox[baprs]-[A-Za-z0-9-]{10,}|"

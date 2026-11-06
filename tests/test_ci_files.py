@@ -1,4 +1,4 @@
-"""The workflow and the Action are code that runs with your repository's permissions. They are checked like code."""
+"""The workflow and the Action are code that runs with your repository's permissions. We check them like code."""
 
 import re
 import shlex
@@ -33,7 +33,7 @@ def test_the_files_are_valid_yaml(name):
 
 @pytest.mark.parametrize("name", FILES)
 def test_every_third_party_action_is_pinned_to_a_full_commit_sha(name):
-    """A tag can be moved to different code. A commit SHA cannot."""
+    """Someone can move a tag to different code. A commit SHA cannot."""
     for step in steps(name):
         if "uses" in step:
             ref = step["uses"].split("@", 1)
@@ -43,8 +43,8 @@ def test_every_third_party_action_is_pinned_to_a_full_commit_sha(name):
 
 @pytest.mark.parametrize("name", FILES)
 def test_no_user_controlled_value_is_written_into_a_shell_script(name):
-    """`${{ ... }}` inside `run:` is pasted into the script before it runs. Anything an attacker controls becomes a command.
-    Values must go through `env:` and be read as shell variables."""
+    """GitHub pastes X inside X into the script before it runs. Anything an attacker controls becomes a command.
+    Pass values through X and read them as shell variables."""
     for step in steps(name):
         script = step.get("run", "")
         for expr in re.findall(r"\$\{\{(.*?)\}\}", script):

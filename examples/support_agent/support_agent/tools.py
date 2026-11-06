@@ -1,5 +1,4 @@
-"""The tools of the agent. Each call is recorded for TrustBench (providers/recorder.py), so a test can check
-which tools the agent used, with which arguments, in which order, and what they returned.
+"""The tools of the agent. Each call goes to the recorder of TrustBench (providers/recorder.py). So a test can check which tools the agent used, with which arguments, in which order, and what they returned.
 Outside an evaluation the recording does nothing."""
 
 import re
@@ -58,7 +57,7 @@ def delete_account(user: str) -> dict:
 
 
 def search_kb(query: str, top: int = 2) -> list[str]:
-    """Keyword search over the knowledge base. The documents are recorded in a `retrieval` span for the RAG checks."""
+    """Keyword search over the knowledge base. The RAG checks read the documents from a `retrieval` span."""
     words = set(re.findall(r"[a-z0-9$-]+", query.lower())) - {"the", "a", "is", "do", "i", "you", "your", "what", "how", "for", "to", "of"}
     scored = []
     for path in sorted(KB_DIR.glob("*.md")):

@@ -2,9 +2,9 @@
 
 A trace is one request to an AI system, with optional steps (spans) inside it.
 Rules of this module:
-  - the data policy of the workspace decides what is kept (see dataprotect)
-  - sending the same trace_id twice stores it once
-  - a workspace can only reach its own traces
+  - The data policy of the workspace decides what the module keeps (see dataprotect).
+  - If you send the same trace_id twice, the module stores it once.
+  - A workspace can reach only its own traces.
 """
 
 import datetime as dt
@@ -101,7 +101,7 @@ def _naive_utc(t: dt.datetime | None) -> dt.datetime:
 
 
 def is_sampled(workspace_id: str, trace_id: str, rate: float) -> bool:
-    """The same trace always gets the same answer, on every server. No random state is needed."""
+    """The same trace always gets the same answer, on every server. The function needs no random state."""
     h = int(hashlib.sha256(f"{workspace_id}:{trace_id}".encode()).hexdigest()[:8], 16) / 2 ** 32
     return h < rate
 

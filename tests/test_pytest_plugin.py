@@ -61,7 +61,7 @@ def test_live_records_then_replay_passes_without_calling_the_app(project):
     run(project, "--trustbench-live").assert_outcomes(passed=1)
     assert calls(project) == 2
     run(project).assert_outcomes(passed=1)                        # Replay: free.
-    assert calls(project) == 2                                    # Still 2: nothing was called.
+    assert calls(project) == 2                                    # Still 2. The run called nothing.
 
 
 def test_live_is_also_switched_on_by_the_environment_for_ci(project, monkeypatch):

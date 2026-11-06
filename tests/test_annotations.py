@@ -48,7 +48,7 @@ def test_import_stores_labels_skips_empty_and_updates_on_repeat(factory, version
     assert import_annotations(factory, out, "ana", "correctness") == (2, 1)
     with factory() as s:
         labels = sorted(a.label for a in s.scalars(select(HumanAnnotation)))
-    assert labels == [0.0, 2.0]  # The first label was replaced, not added.
+    assert labels == [0.0, 2.0]  # The import replaced the first label. It did not add one.
 
 
 def test_bad_rows_are_reported_with_a_line_number(factory, version, tmp_path):

@@ -80,7 +80,7 @@ class ModelConfiguration(Base):
 
 class EvaluationRun(Base):
     __tablename__ = "evaluation_runs"
-    # Run lists are read for one workspace, newest first.
+    # The code reads run lists for one workspace, newest first.
     __table_args__ = (Index("ix_evaluation_runs_workspace_created", "workspace_id", "created_at"),)
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
@@ -95,7 +95,7 @@ class EvaluationRun(Base):
     judge_cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
     finished_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)
-    # Pass rate and interval for each model, stored when the run ends or is scored again.
+    # Pass rate and interval for each model. The code stores them when the run ends or when it scores the run again.
     # The run list reads this and does not load the whole run. None means: not computed yet.
     overview: Mapped[dict | None] = mapped_column(Json, nullable=True)
 
@@ -184,7 +184,7 @@ class Baseline(Base):
 class Experiment(Base):
     """A named variant of the system under test (v0, v1, ...), linked to its run and to the variant it changed.
 
-    This is the history of an EDD session: what we tried, why, and what the evidence said. Rows are never changed.
+    This is the history of an EDD session: what we tried, why, and what the evidence said. The code never changes rows.
     """
 
     __tablename__ = "experiments"
@@ -201,7 +201,7 @@ class Experiment(Base):
 
 
 class ReleaseDecision(Base):
-    """What the gate decided, with the policy and the evidence. Rows are never changed."""
+    """What the gate decided, with the policy and the evidence. The code never changes rows."""
 
     __tablename__ = "release_decisions"
 
@@ -234,7 +234,7 @@ class ProposedCase(Base):
     source_case_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
     method: Mapped[str] = mapped_column(String(100))        # transform:NAME, model_variation or production
     workspace_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)   # Set for cases from production traces.
-    expected_verified: Mapped[bool] = mapped_column(Boolean)  # True when the expected result is known to be right.
+    expected_verified: Mapped[bool] = mapped_column(Boolean)  # True when we know that the expected result is right.
     status: Mapped[str] = mapped_column(String(20), default="proposed")  # proposed | approved | rejected
     note: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
@@ -242,7 +242,7 @@ class ProposedCase(Base):
 
 
 class Workspace(Base):
-    """A tenant. Production data and API keys belong to one workspace and are never shared."""
+    """A tenant. Production data and API keys belong to one workspace. Workspaces never share them."""
 
     __tablename__ = "workspaces"
 
@@ -253,7 +253,7 @@ class Workspace(Base):
 
 
 class ApiKey(Base):
-    """We store only a hash of the key. The key itself is shown once, when it is made."""
+    """We store only a hash of the key. The system shows the key itself once, when it makes the key."""
 
     __tablename__ = "api_keys"
 
@@ -298,7 +298,7 @@ class ProductionTrace(Base):
     input_enc: Mapped[str | None] = mapped_column(Text, nullable=True)      # Encrypted, redacted text. Only with store_content.
     output_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
     context_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
-    redactions: Mapped[dict] = mapped_column(Json, default=dict)            # How many items of each kind were removed.
+    redactions: Mapped[dict] = mapped_column(Json, default=dict)            # How many items of each kind the code removed.
     truncated: Mapped[bool] = mapped_column(Boolean, default=False)
     tags: Mapped[dict] = mapped_column(Json, default=dict)
     feedback: Mapped[int | None] = mapped_column(Integer, nullable=True)    # -1, 0 or 1 from the user.
@@ -327,7 +327,7 @@ class TraceSpan(Base):
 
 
 class AuditLog(Base):
-    """Who did something sensitive. Rows are only added."""
+    """Who did something sensitive. The code only adds rows."""
 
     __tablename__ = "audit_log"
 
@@ -340,7 +340,7 @@ class AuditLog(Base):
 
 
 class JobRow(Base):
-    """A task for a worker. The database is the default queue, so no other service is needed."""
+    """A task for a worker. The database is the default queue. So you need no other service."""
 
     __tablename__ = "jobs"
     # A worker takes the oldest ready job: this index answers that without a sort.

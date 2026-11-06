@@ -13,7 +13,7 @@ make edd-demo          # from the repository root. About 20 seconds. Uses a temp
 | v0 | The simplest thing: answers from memory, calls tools with wrong arguments | 3 of 48 | – |
 | v1 | Uses tools correctly | 29 of 48 (**better**, hypothesis supported) | **fail**: refunds over the limit, 12 of 14 critical cases fail, yearly cost $2.4M over the $900k limit |
 | v2 | Knowledge base, human escalation, ignores injected text | 48 of 48 | **pass** |
-| v3 | Understands "arrived damaged" (found in production) | 49 of 49 (the new case was promoted from a production trace) | **pass** |
+| v3 | Understands "arrived damaged" (found in production) | 49 of 49 (a person promoted the new case from a production trace) | **pass** |
 
 Files: `support_agent/` (the agent), `datasets/support.jsonl` (48 cases, built by `build_dataset.py`), `trustbench.yaml`, `policy.yaml` (release rules and cost model), `demo.py` (the story).
 

@@ -73,7 +73,7 @@ def test_help_is_fast_and_commands_still_load():
     t0 = time.perf_counter()
     out = subprocess.run([sys.executable, "-c", "from trustbench.cli import app; app(['--help'])"], capture_output=True, text=True, timeout=60)
     assert "run" in out.stdout and "selftest" in out.stdout and "gate" in out.stdout
-    assert time.perf_counter() - t0 < 1.5                  # It took 1.15 s on a fast machine before. A slow one is allowed some room.
+    assert time.perf_counter() - t0 < 1.5                  # It took 1.15 s on a fast machine before. A slow one gets some room.
 
 
 def test_a_file_database_uses_write_ahead_logging_and_enforces_foreign_keys(tmp_path):

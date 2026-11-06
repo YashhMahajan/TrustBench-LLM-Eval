@@ -1,7 +1,6 @@
 """A report of one run that a person can send to someone else: Markdown or JSON.
 
-It has the same numbers as the dashboard, each with its interval and number of cases, and a section that says how to
-repeat the run. A reader who was not there can see what was tested, what was found and how sure we are.
+It has the same numbers as the dashboard, each with its interval and number of cases. It also has a section that says how to repeat the run. A reader who was not there can see what we tested, what we found and how sure we are.
 """
 
 from dataclasses import asdict, is_dataclass

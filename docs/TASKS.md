@@ -8,7 +8,7 @@ Legend: [x] done · [~] in progress · [ ] to do
 
 ## Completed: Phases 1–7 (the platform)
 
-| Phase | What was built |
+| Phase | What we built |
 |---|---|
 | 1. Core engine | Provider interface (Anthropic, OpenAI, Gemini, OpenAI-compatible, local, mock). Tokens, latency, cost, errors. JSONL datasets with content-hash versions. Exact-match and rule evaluators. Generate and re-score modes. `trustbench run` with key detection. Re-scoring sends zero model calls. |
 | 2. Scoring quality | Schema, programmatic, reference, LLM-judge and pairwise evaluators. Claim-level hallucination pipeline (supported, contradicted, insufficient, not applicable). Dataset quality checks. Ten built-in suites. Human annotation and judge validation (agreement, kappa, position and length bias). |
@@ -16,9 +16,15 @@ Legend: [x] done · [~] in progress · [ ] to do
 | 4. Robustness and failures | Metamorphic transforms. Robustness metrics (break rate, degradation, consistency, weakest transform). Prompt-injection suite. Adversarial proposals, always approved by a person. Failure taxonomy, clusters, RAG stage diagnosis, priority score. P50/P95/P99 latency, cost per success, Pareto frontier. |
 | 5. Production loop | SDK (`trustbench.sdk`). Redaction and retention. Online evaluation by sampling. Drift (PSI, KS test). Trace → proposed test → approval → dataset version. Workers and a job queue. Workspaces and keys. |
 | 6. Dashboard | Overview, runs with detail, compare and gate, benchmarks with proposal review, models, production monitor, settings. Every number links to its cases. Every score shows its interval and size. Not built: an Evaluators page and a Reports page (see I-15). |
-| 7. Validation | `trustbench selftest` with simulations of known truth. Each check is tested by breaking the code it watches. Migrations, key expiry, rate limits, run report export, Docker files. |
+| 7. Validation | `trustbench selftest` with simulations of known truth. A test breaks the code that each check watches. Migrations, key expiry, rate limits, run report export, Docker files. |
 
 Later hardening: batched writes, answer cache, resume, rate limit, composite indexes, API edge hardening (see `docs/PERFORMANCE.md`).
+
+## Writing rules  [x]
+- [x] All project text follows the writing rules that a program can check. This covers the README, `MEMORY.md`, `docs/`, docstrings, comments and command help text.
+- [x] `scripts/writing_check.py` checks sentence length (20 words for an instruction, 25 for other sentences), passive voice, contractions, Latin abbreviations, semicolons and paragraph length.
+- [x] `tests/test_writing_rules.py` runs it on every tracked file. So CI blocks text that breaks a rule. `make writing` runs it by hand.
+- [ ] Not covered: the choice of words and the meaning of the text.
 
 ## M1 — App targets  [x]  (commit `e69fa1b`)
 - [x] `providers/app.py`: `PythonAppProvider`, `HttpAppProvider`, `@label` versions, git fingerprint
@@ -38,7 +44,7 @@ Later hardening: batched writes, answer cache, resume, rate limit, composite ind
 ## M3 — Config, pytest plugin, plugins  [x]
 - [x] `edd/config.py`: `trustbench.yaml` model, loader, template. `trustbench init`.
 - [x] `trustbench run` reads `trustbench.yaml` (`--config`, `--target`). Flags win over the file.
-- [x] `edd/plugins.py`: entry point group `trustbench.evaluators`. A broken plugin is skipped. A plugin cannot replace a built-in. `trustbench plugins`.
+- [x] `edd/plugins.py`: entry point group `trustbench.evaluators`. TrustBench skips a broken plugin. A plugin cannot replace a built-in. `trustbench plugins`.
 - [x] `edd/pytest_plugin.py`: `trustbench` fixture, replay by default, `--trustbench-live`, `--trustbench-budget`, gate verdict. `pytest11` entry point.
 - [x] Docs: `PRD.md`, `ARCHITECTURE.md`, `ISSUES.md`, `TASKS.md`, `DATA.md`, root `MEMORY.md`. `PLAN.md` merged here and removed. `LEARNING.md` removed.
 - [x] 66 new tests (config, CLI, plugins, pytester-based plugin tests), mutation-checked
@@ -47,35 +53,35 @@ Later hardening: batched writes, answer cache, resume, rate limit, composite ind
 ## M4 — Experiments, cost model, prompt versions  [x]
 - [x] `edd/experiments.py`: `experiment record / list / compare`. Verdict: supported, refuted, mixed (gain hides a worse slice), no_effect, cannot_tell.
 - [x] `edd/costmodel.py` + `trustbench cost`: confusion-cost matrix, volume, $/year with an interval, manual and perfect baselines. Reproduces the $380,000 / $100,000 reference example.
-- [x] Policy: `cost_model` block and `annual_cost_max_usd`. Gate rule `annual_cost`: fail over the limit; inconclusive when the interval straddles it or the cost is unknown.
-- [x] Prompts: `--system-prompt-file` / `run.system_prompt_file`. The text is stored in the run snapshot. `experiment compare` shows the diff. Python and HTTP targets can receive `system`.
+- [x] Policy: `cost_model` block and `annual_cost_max_usd`. Gate rule `annual_cost`: fail over the limit. Inconclusive when the interval straddles it or the cost is unknown.
+- [x] Prompts: `--system-prompt-file` / `run.system_prompt_file`. The run snapshot keeps the text. `experiment compare` shows the diff. Python and HTTP targets can receive `system`.
 - [x] Migration 0006 (`experiments`)
 - [x] Two selftest checks (hand calculation, interval coverage) with sabotage tests. 33 checks in total.
 - [x] 51 new tests, mutation-checked
 - [x] Commit (local only)
 
 ## M5 — CI/CD  [x]
-- [x] `.github/workflows/ci.yml`: ruff, pytest, selftest; Docker build and health check; dashboard typecheck and build. Actions pinned to commit SHAs. Least permission.
+- [x] `.github/workflows/ci.yml`: ruff, pytest, selftest, Docker build and health check, dashboard typecheck and build. Actions pinned to commit SHAs. Least permission.
 - [x] `action.yml` (reusable composite Action): `trustbench ci check`, cached answers, report artifact. Inputs go through `env`, never into the script text.
-- [x] `trustbench ci check | comment | post`; `ci/comment.py` (comment with escaping of untrusted text, size cap), `ci/github.py` (update in place, only bot comments with the marker), `ci/check.py`
+- [x] `trustbench ci check | comment | post`. `ci/comment.py` escapes untrusted text and caps the size. `ci/github.py` updates a comment in place, and only a bot comment with the marker. `ci/check.py` runs the check.
 - [x] `edd/runner.py`: shared run steps for `run`, `ci check` and the pytest plugin
 - [x] Golden snapshot test of the comment. Tests that lint the workflow and Action (pinned SHAs, no script injection, options exist).
 - [x] Verified locally: the exact CI install command in a fresh virtualenv, the server health check on SQLite, the dashboard typecheck and build
-- [ ] Not verified: the workflow and the Action on GitHub (they were never run there), the Docker job (the Docker daemon was not running here)
+- [ ] Not verified: the workflow and the Action on GitHub (we never ran them there), and the Docker job (the Docker daemon did not run here)
 - [x] Commit (local only)
 
 ## M6 — Flagship example and docs  [x]
 - [x] `examples/support_agent/`: tools, a scripted stand-in for the model, v0–v3, 48 cases (single-turn, multi-turn, safety, edge), `policy.yaml` with a cost model
 - [x] `make edd-demo` (and a CI job): v0 fails → failures → v1 better but blocked → v2 passes → production trace → promote → approve → export → v3. Runs with no API key.
 - [x] Tests keep the story true (scores, labels, gate verdicts, the committed dataset, the whole demo)
-- [x] `docs/EDD.md`; README section "Eval-Driven Development in 5 minutes"; example README
-- [x] Found and fixed: the current folder was not importable by the `trustbench` script (python targets in your project were not found)
+- [x] `docs/EDD.md`, the README section "Eval-Driven Development in 5 minutes", and the example README
+- [x] Found and fixed: the `trustbench` script did not import the current folder, so it did not find python targets in your project
 - [x] Dashboard: "Variant history" page (`/experiments`, API `GET /v1/experiments`) and a "Steps the app took" view in the case drawer (tool calls, results, retrieved documents)
-- [x] Demo data includes two variants. Typecheck and production build pass; the page was rendered against demo data (HTML only, not looked at in a browser).
+- [x] Demo data includes two variants. Typecheck and production build pass. We rendered the page against demo data (HTML only). Nobody looked at it in a browser.
 - [x] Commits (local only)
 
 ## Final  [ ]
-- [x] Full `/cso` scan of the whole codebase: 6 findings, all fixed (certifi and filelock pins, token isolation in the Action, pinned Action install, import shadowing, CODEOWNERS). See `docs/ISSUES.md`.
+- [x] Full `/cso` scan of the whole codebase: 6 findings, all fixed. The fixes: certifi and filelock pins, token isolation in the Action, pinned Action install, import shadowing, CODEOWNERS. See `docs/ISSUES.md`.
 - [ ] Update `docs/*`, `README.md`, `MEMORY.md`
 - [ ] One live run against a real provider (I-01), recorded in `docs/PERFORMANCE.md`
 - [ ] Ask the owner before any push

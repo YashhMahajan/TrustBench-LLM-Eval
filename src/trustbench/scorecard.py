@@ -1,4 +1,4 @@
-"""Pass rates with their uncertainty. A rate without its interval and size is not shown."""
+"""Pass rates with their uncertainty. We do not show a rate without its interval and size."""
 
 from dataclasses import dataclass
 
@@ -11,7 +11,7 @@ class Score:
     n: int                            # Number of cases.
     rate: float | None
     ci: tuple[float, float] | None    # 95% interval.
-    method: str = ""                  # How the interval was made.
+    method: str = ""                  # How we made the interval.
 
     @property
     def text(self) -> str:

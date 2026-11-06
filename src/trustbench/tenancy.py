@@ -76,7 +76,7 @@ def list_workspaces(factory: sessionmaker) -> list[Workspace]:
 
 
 def create_api_key(factory: sessionmaker, workspace_id: str, name: str, role: str = "write", expires_in_days: float | None = None) -> tuple[ApiKey, str]:
-    """Returns the stored row and the key. The key cannot be read again, so show it now."""
+    """Returns the stored row and the key. Nobody can read the key again, so show it now."""
     if role not in ROLES:
         raise TenancyError(f"Role must be one of: {', '.join(ROLES)}.")
     if expires_in_days is not None and expires_in_days <= 0:

@@ -19,7 +19,7 @@ from trustbench.providers.http import OpenAICompatibleProvider, is_reasoning_mod
 
 
 def cacheable(provider: MockProvider) -> MockProvider:
-    provider.cacheable = True          # Mock answers depend on how the mock is set up, so it is not cached by default.
+    provider.cacheable = True          # Mock answers depend on how we set up the mock, so the cache skips it by default.
     return provider
 
 
@@ -78,7 +78,7 @@ def test_a_run_stopped_by_the_budget_can_be_finished(factory, version, monkeypat
     rows = report.case_rows(factory, rid)
     assert [r["status"] for r in rows].count("done") == 3
     assert report.get_run(factory, rid).status == "complete"
-    assert provider.calls == 3                                  # Each case was called once. Nothing was repeated.
+    assert provider.calls == 3                                  # The run called each case once. The run repeated nothing.
 
 
 def test_resume_refuses_a_run_with_nothing_left(factory, version):
@@ -95,7 +95,7 @@ def test_ctrl_c_keeps_the_saved_results_and_resume_does_the_rest(factory, versio
             if self.calls == 1:
                 self.calls += 1
                 signal.raise_signal(signal.SIGINT)              # What Ctrl-C does.
-                await asyncio.sleep(5)                          # The run is cancelled here.
+                await asyncio.sleep(5)                          # The run stops here.
             return await super().generate(req)
 
     provider = StopsOnSecondCall(ANSWERS)
@@ -106,7 +106,7 @@ def test_ctrl_c_keeps_the_saved_results_and_resume_does_the_rest(factory, versio
     assert run.status == "incomplete" and run.finished_at is not None
     with factory() as s:
         done = s.scalar(select(func.count()).select_from(TestExecution).where(TestExecution.status == "done"))
-    assert done == 1                                            # The first result was saved, not lost.
+    assert done == 1                                            # The run saved the first result. It did not lose it.
     resume_run(factory, rid, provider_factory=lambda n: MockProvider(ANSWERS))
     assert {r["status"] for r in report.case_rows(factory, rid)} == {"done"}
     assert report.get_run(factory, rid).status == "complete"
@@ -144,7 +144,7 @@ def test_the_wait_asked_by_the_server_is_respected_but_capped(factory, version, 
 
     t = time.perf_counter()
     go(factory, version, Slowed(ANSWERS), concurrency=1, retries=1)
-    assert time.perf_counter() - t >= 0.29                      # The backoff setting is 0. The server's wish was used.
+    assert time.perf_counter() - t >= 0.29                      # The backoff setting is 0. The run used the wish of the server.
 
     monkeypatch.setattr(engine, "MAX_RETRY_WAIT", 0.01)
 

@@ -109,7 +109,7 @@ def test_app_problems_become_non_retryable_provider_errors(sample_app, model, ne
 
 
 def test_concurrent_cases_never_see_each_others_records(sample_app):
-    """Without isolation, a span from case A would be scored against case B, and nobody would notice."""
+    """Without isolation, the checks would score a span from case A against case B, and nobody would notice."""
     async def many():
         p = PythonAppProvider()
         return await asyncio.gather(*(p.generate(REQ("sample_app:interleaved", prompt=f"q{i}")) for i in range(20)))
@@ -329,7 +329,7 @@ def test_the_run_command_can_test_a_python_function(tmp_path, sample_app, monkey
 
 
 def test_a_target_in_the_current_folder_is_found_by_the_real_command(tmp_path):
-    """The `trustbench` script does not put the current folder on the import path by itself. Users expect their project to be found."""
+    """The `trustbench` script does not put the current folder on the import path by itself. Users expect the command to find their project."""
     import subprocess
     import sys
     script = pathlib.Path(sys.executable).parent / "trustbench"

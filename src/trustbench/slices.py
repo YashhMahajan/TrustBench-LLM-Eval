@@ -1,6 +1,6 @@
 """Find where a model is weak. A single average hides weak groups of cases.
 
-Each group (slice) is compared with all other cases. Because we test many
+The code compares each group (slice) with all other cases. Because we test many
 slices, some look weak by chance. Benjamini-Hochberg removes most of those.
 """
 
@@ -10,7 +10,7 @@ from .rundata import Record, case_outcomes
 from .scorecard import Score, rate_score
 from .stats import benjamini_hochberg, fisher_exact_less, mean, two_group_permutation_p
 
-MIN_SLICE = 5   # Smaller slices are listed but not tested.
+MIN_SLICE = 5   # The code lists smaller slices but does not test them.
 # Metadata that names one case or one origin is not a property that a group of cases shares.
 NOT_SLICES = {"critical", "requires_judge", "source_case", "trace_id", "generated", "source", "origin", "promoted_by"}
 

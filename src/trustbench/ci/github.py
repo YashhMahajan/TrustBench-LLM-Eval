@@ -1,8 +1,7 @@
 """Post the TrustBench comment on a pull request, or update the one it posted before.
 
-Only the standard library of Actions is used: the GITHUB_TOKEN of the workflow. The token is never printed.
-We only edit a comment that a bot wrote and that starts with our marker, so a person cannot make us edit
-their comment by copying the marker.
+The poster uses only the GITHUB_TOKEN of the workflow. The poster never prints the token.
+We edit only a comment that a bot wrote and that starts with our marker. So a person cannot make us edit their comment by copying the marker.
 """
 
 import re

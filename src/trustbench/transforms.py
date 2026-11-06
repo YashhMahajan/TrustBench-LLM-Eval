@@ -1,8 +1,7 @@
 """Changes to a test case that must not change the right answer.
 
 If a model passes the original case and fails the changed case, the model is fragile.
-A change is only useful if it keeps the meaning. So every variant is checked
-(check_invariants) and a variant that fails the check is dropped, not tested.
+A change is only useful if it keeps the meaning. So the code checks every variant (check_invariants). It drops a variant that fails the check and does not test it.
 """
 
 import json
@@ -84,7 +83,7 @@ def typos(case: CaseSpec, rng: random.Random) -> CaseSpec | None:
             i = rng.randrange(1, len(w) - 2)
             text = text[:m.start()] + w[:i] + w[i + 1] + w[i] + w[i + 2:] + text[m.end():]
         return text
-    # The context is left alone, so the evidence stays exact.
+    # The transform leaves the context alone, so the evidence stays exact.
     return _edit(case, noisy)
 
 

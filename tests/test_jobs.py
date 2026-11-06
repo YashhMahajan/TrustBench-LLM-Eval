@@ -122,7 +122,7 @@ def test_worker_runs_handlers_retries_and_survives_errors(q):
     assert n == 3 and ("ok", 1) in seen and seen.count(1) == 1
     dead = q.dead()
     assert [d["kind"] for d in dead] == ["broken"] and "ZeroDivisionError" in dead[0]["error"]
-    # The failed flaky job waits for its retry and the job without a handler is untouched.
+    # The failed flaky job waits for its retry. The job without a handler stays as it was.
     assert q.counts()["queued"] == 2
 
 

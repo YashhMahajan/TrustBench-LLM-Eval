@@ -44,7 +44,7 @@ class AnnotationError(ValueError):
 def import_annotations(factory: sessionmaker, path: Path, annotator: str, dimension: str) -> tuple[int, int]:
     """Store the labels. A new label for the same answer, person and dimension replaces the old one.
 
-    Returns (stored, skipped). Rows with an empty label are skipped.
+    Returns (stored, skipped). The import skips rows with an empty label.
     """
     stored = skipped = 0
     with factory.begin() as s:

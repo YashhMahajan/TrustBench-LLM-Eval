@@ -6,14 +6,14 @@
 
 How it behaves:
   - Default: REPLAY. Answers come from the stored answers (the cache). A plain `pytest` costs nothing.
-    If an answer is not stored, the test fails and tells you to record it.
-  - `pytest --trustbench-live` (or TRUSTBENCH_LIVE=1, for CI) calls the models and apps for real and stores the answers.
-  - `--trustbench-budget USD` stops starting live calls after this spend in one pytest session.
-  - The verdict comes from the release gate (gate.py), so it uses confidence intervals, not a bare average.
-  - Answers are stored in .trustbench/pytest.db, or in --trustbench-db / TRUSTBENCH_DATABASE_URL.
-  - Judge-model calls are not stored. A test that uses a judge needs the judge's API key, even in replay mode.
-  - A model with no stored identity cannot be replayed: `mock:` runs for free each time, and a python: target
-    with no @label on a dirty git tree is never stored. Add an @label.
+    If TrustBench has no stored answer, the test fails and tells you to record it.
+  - `pytest --trustbench-live` (or TRUSTBENCH_LIVE=1, for CI) calls the models and apps for real. It stores the answers.
+  - `--trustbench-budget USD` stops live calls after this spend in one pytest session.
+  - The verdict comes from the release gate (gate.py). So it uses confidence intervals, not a bare average.
+  - TrustBench stores answers in .trustbench/pytest.db, or in --trustbench-db / TRUSTBENCH_DATABASE_URL.
+  - TrustBench does not store judge-model calls. A test that uses a judge needs the API key of the judge, even in replay mode.
+  - TrustBench cannot replay a model with no stored identity. `mock:` runs for free each time.
+    A python: target with no @label on a dirty git tree has no stored identity. Add an @label.
 """
 
 import os
@@ -58,7 +58,7 @@ def make_provider_factory(live: bool, models: set[str]):
             return self.inner.cache_salt(model)
 
         async def generate(self, req):
-            if req.model not in models:                        # The judge. Its answers are never stored.
+            if req.model not in models:                        # The judge. TrustBench never stores its answers.
                 return await self.inner.generate(req)
             if self.inner.cache_salt(req.model) is None:
                 raise ProviderError(f"{NO_STORED}: '{req.model}' has no version label and the git tree is dirty, so it cannot be "
@@ -121,11 +121,14 @@ class TrustBenchRunner:
                     critical_failures_allowed: int | None = None) -> EvalResult:
         """Run, then ask the release gate. Fails the test unless the verdict is pass.
 
-        confidence_bound=True (default): the LOW end of the 95% interval must reach min_pass. A small dataset
-        gives a wide interval, so 10 of 10 may not prove 90%. Add cases, or set it False to use the average.
+        confidence_bound=True (default): the LOW end of the 95% interval must reach min_pass.
+        A small dataset gives a wide interval, so 10 of 10 may not prove 90%.
+        To fix this, add cases. Or set it to False to use the average.
+
         allow_inconclusive=True lets "not enough evidence" pass.
-        critical_failures_allowed=0 also fails the test when a case marked metadata.critical fails. It is off by default,
-        because a dataset with no critical cases would then always be inconclusive.
+
+        critical_failures_allowed=0 also fails the test when a case marked metadata.critical fails.
+        It is off by default. Otherwise a dataset with no critical cases would always be inconclusive.
         """
         from .. import report
         from ..gate import evaluate_gate

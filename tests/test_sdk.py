@@ -111,7 +111,7 @@ def test_a_refused_key_switches_tracing_off(env):
     tb.flush()
     assert not tb.enabled and tb.stats.dropped == 1
     tb.log("y")
-    assert tb.stats.dropped == 1                # Nothing more is queued.
+    assert tb.stats.dropped == 1                # The SDK queues nothing more.
 
 
 def test_invalid_traces_are_counted_as_rejected(env):

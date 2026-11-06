@@ -1,6 +1,6 @@
 """The state of a production system in one summary.
 
-Every number says how it was obtained, so that a dashboard never shows a guess as a fact:
+Every number says how we got it. So a dashboard never shows a guess as a fact:
   measured     counted or timed (errors, latency, cost, tokens, ratings, rule checks)
   estimated    a judge model's opinion on a sample (groundedness, helpfulness). A judge can be wrong.
   unmeasured   nothing in production can tell us. We list these on purpose.

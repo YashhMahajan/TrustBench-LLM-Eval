@@ -1,6 +1,6 @@
 """Compare a candidate with a baseline on the same cases.
 
-The cases are paired by id. We test the differences, not the two rates alone,
+The code pairs the cases by id. We test the differences, not the two rates alone,
 because both systems answered the same questions.
 """
 

@@ -101,7 +101,7 @@ def create_app(factory: sessionmaker | None = None, rate_limit: int | None = Non
 
     @app.post("/v1/traces", status_code=202)
     async def post_traces(request: Request, p: Principal = Depends(need("write")), f: sessionmaker = Depends(db)):
-        body = await request.body()                 # The size limit is enforced by the BodyLimit middleware.
+        body = await request.body()                 # The BodyLimit middleware enforces the size limit.
         try:
             raw = json.loads(body)
             items = raw["traces"]

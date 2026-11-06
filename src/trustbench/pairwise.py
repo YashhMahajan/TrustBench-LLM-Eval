@@ -1,7 +1,6 @@
-"""Blind pairwise comparison. Each pair is judged twice, in both orders.
+"""Blind pairwise comparison. The judge judges each pair twice, in both orders.
 
-If the judge picks a different answer when the order changes, the verdict
-is a tie and is marked inconsistent. This shows position bias.
+If the judge picks a different answer when the order changes, the verdict is a tie. We mark it as inconsistent. This shows position bias.
 """
 
 from dataclasses import dataclass

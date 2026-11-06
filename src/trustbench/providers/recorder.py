@@ -41,7 +41,7 @@ def recording():
 
 
 def tool_call(name: str, args: dict | None = None, result=None, error: str | None = None) -> None:
-    """Note that the app called a tool. Order is kept."""
+    """Note that the app called a tool. The recorder keeps the order."""
     rec = _current.get()
     if rec is not None:
         rec.tool_calls.append({"name": name, "args": args or {}, "result": result, "error": error})

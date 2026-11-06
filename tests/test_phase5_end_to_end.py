@@ -41,7 +41,7 @@ def test_a_production_failure_becomes_a_test_that_guards_the_next_release(factor
     assert run_worker(DbQueue(factory), handlers, concurrency=1, idle_exit=True, poll_interval=0.01) == 20
     assert monitor_summary(factory, ws.id, 1)["measured"]["check:rule"]["pass_rate"]["k"] == 19
 
-    # 3. The failure is flagged. Personal data was removed before anything was stored.
+    # 3. The system flags the failure. The system removed personal data before it stored anything.
     [flag] = flagged_traces(factory, ws.id)
     assert flag.reasons == ["check:rule (measured)"]
     p = promote(factory, ws.id, flag.trace_id)
@@ -58,7 +58,7 @@ def test_a_production_failure_becomes_a_test_that_guards_the_next_release(factor
     with factory() as s:
         version = import_dataset(s, "regression", load_cases(path))
 
-    # 6. The next release is tested against the old failure: the new case fails for the old behaviour and passes for the fix.
+    # 6. We test the next release against the old failure. The new case fails for the old behaviour and passes for the fix.
     #    (One case cannot give a gate verdict: the gate says 'inconclusive' for n=1, so we check the case result.)
     bad, good = MockProvider({"Where is order": "Sorry, I am very sorry, I do not know where it is."}), MockProvider({"Where is order": "Shipped yesterday."})
     outcomes = {}

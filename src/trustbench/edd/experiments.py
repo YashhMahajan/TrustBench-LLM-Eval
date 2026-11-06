@@ -40,7 +40,7 @@ def get(s, name: str, workspace_id: str | None = None) -> Experiment:
 
 def record(factory: sessionmaker, name: str, run_ref: str, parent: str | None = None, hypothesis: str = "",
            model: str | None = None, workspace_id: str | None = None) -> Experiment:
-    """Name a run as a variant. `run_ref` is a run id or a baseline name. Names are history: they are not reused."""
+    """Name a run as a variant. `run_ref` is a run id or a baseline name. Names are history. Do not reuse them."""
     if not name.strip():
         raise ExperimentError("An experiment needs a name.")
     run_id, run_model = resolve(factory, run_ref)

@@ -14,7 +14,7 @@ def reply(winner):
 
 
 def prefers(text):
-    """A judge that likes one answer, wherever it is placed."""
+    """A judge that likes one answer, wherever you place it."""
     def fn(prompt):
         first = prompt.split("<first_answer>\n")[1].split("\n</first_answer>")[0]
         return reply("first" if first == text else "second")

@@ -84,4 +84,4 @@ def test_failure_type_counts_in_the_text_that_is_clustered():
     from trustbench.clustering import failure_text
     f = fail("a", "q", labels=("wrong_answer", "format_violation"))
     words = failure_text(f).split()
-    assert words.count("wrong_answer") == 3 and words.count("format_violation") == 3   # The labels are repeated as separate words.
+    assert words.count("wrong_answer") == 3 and words.count("format_violation") == 3   # The text repeats the labels as separate words.

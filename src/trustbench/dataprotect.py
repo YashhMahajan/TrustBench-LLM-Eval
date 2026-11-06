@@ -59,7 +59,7 @@ def policy_of(ws: Workspace) -> DataPolicy:
 
 
 def update_policy(factory: sessionmaker, workspace_id: str, **changes) -> DataPolicy:
-    """Change settings. All of them are checked together, and nothing is saved if one is wrong."""
+    """Change settings. The code checks all of them together. It saves nothing if one is wrong."""
     with factory.begin() as s:
         ws = s.get(Workspace, workspace_id)
         if ws is None:
@@ -90,7 +90,7 @@ class Protected:
 
 
 def protect(policy: DataPolicy, text: str) -> Protected:
-    """Apply the policy to one piece of text. The original text is never kept."""
+    """Apply the policy to one piece of text. The code never keeps the original text."""
     original_length = len(text)
     truncated = original_length > policy.max_payload_chars
     clean, counts = redact(text[:policy.max_payload_chars], policy.extra_redactions) if policy.redact else (text[:policy.max_payload_chars], {})

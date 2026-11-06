@@ -7,7 +7,7 @@ Four statuses:
   incomplete    the run did not finish, or the evaluators broke
 
 If a rule is clearly broken the status is fail, even when the run is also incomplete.
-Weak evidence is never read as a pass.
+The gate never reads weak evidence as a pass.
 """
 
 from dataclasses import asdict, dataclass, field

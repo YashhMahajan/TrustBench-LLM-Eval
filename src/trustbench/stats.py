@@ -73,7 +73,7 @@ def paired_diffs(a, b) -> list[float]:
 
 
 def paired_bootstrap(a, b, n_boot: int = 4000, alpha: float = 0.05, seed: int = 0):
-    """Mean difference (b minus a) and its interval. Whole cases are resampled, so the pairing stays."""
+    """Mean difference (b minus a) and its interval. The code resamples whole cases, so the pairing stays."""
     d = paired_diffs(a, b)
     if not d:
         return None
@@ -138,7 +138,7 @@ def verdict(ci: tuple[float, float], min_effect: float) -> str:
       meaningful_*          the interval is clear of zero and past min_effect
       *_below_threshold     the interval is clear of zero but the change may be too small to matter
       equivalent            the interval is inside +/- min_effect: no change that matters
-      inconclusive          we cannot tell. More cases are needed.
+      inconclusive          we cannot tell. We need more cases.
     """
     lo, hi = ci
     if lo > 0:
@@ -283,7 +283,7 @@ def chi2_sf(x: float, df: int) -> float:
 
 
 def chi2_homogeneity(ref_counts: dict, cur_counts: dict) -> tuple[float, float, int] | None:
-    """Do two samples have the same category shares? Returns (chi2, p, df). Categories are joined by key."""
+    """Do two samples have the same category shares? Returns (chi2, p, df). The code joins categories by key."""
     cats = sorted(set(ref_counts) | set(cur_counts), key=str)
     n1, n2 = sum(ref_counts.values()), sum(cur_counts.values())
     if len(cats) < 2 or n1 == 0 or n2 == 0:

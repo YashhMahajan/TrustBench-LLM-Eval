@@ -128,7 +128,7 @@ VERDICT_WORDS = {"supported": "[green]supported[/green]", "refuted": "[red]refut
 
 
 @experiment_app.command("compare")
-def experiment_compare(name: str = typer.Argument(..., help="The variant to judge. It is compared with its parent."),
+def experiment_compare(name: str = typer.Argument(..., help="The variant to judge. TrustBench compares it with its parent."),
                        policy: Path = typer.Option(Path("policy.yaml"), help="Policy file (its cost_model adds dollars)"),
                        min_effect: float = typer.Option(0.01, help="Smallest change in pass rate that matters")):
     """Does the evidence support the hypothesis? Compares a variant with its parent."""

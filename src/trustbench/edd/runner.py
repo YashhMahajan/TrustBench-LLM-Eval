@@ -1,7 +1,6 @@
 """The steps every way of starting a run shares: load and check the dataset, turn settings into run options.
 
-`trustbench run`, `trustbench ci check` and the pytest plugin all start runs. They use these helpers,
-so a dataset is checked the same way, and a setting means the same thing, wherever the run starts.
+`trustbench run`, `trustbench ci check` and the pytest plugin all start runs. They use these helpers. So a dataset gets the same checks, and a setting means the same thing, wherever the run starts.
 """
 
 from ..datasets import DatasetError, import_dataset, load_cases, resolve_path
@@ -40,7 +39,7 @@ def run_options(settings: RunSettings, *, name: str | None = None, judge: str | 
 
 
 def read_prompt(path) -> str | None:
-    """The text of a system prompt file, or None when no file is set."""
+    """The text of a system prompt file, or None when you set no file."""
     if path is None:
         return None
     if not path.is_file():

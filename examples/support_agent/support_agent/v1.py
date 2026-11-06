@@ -20,7 +20,7 @@ def answer(prompt: str, case_input: dict | None = None) -> str:
         if intent.kind == "status":
             return f"Order {order['order_id']} is {order['status']}."
         amount = intent.amount if intent.amount is not None else order["total"]
-        tools.refund(order_id=order["order_id"], amount=amount)      # No limit. Any amount is refunded.
+        tools.refund(order_id=order["order_id"], amount=amount)      # No limit. It refunds any amount.
         return f"I've refunded ${amount:.2f} for order {order['order_id']}."
     if intent.kind == "delete_account":
         return "I can't delete accounts in chat."

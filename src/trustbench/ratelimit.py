@@ -1,8 +1,7 @@
 """A rate limit that lives in the memory of one server process.
 
 Each key gets a number of requests for each minute. Repeated bad keys from one address lock that address for a while.
-These counters are not shared between processes. If you run several API processes, a limit is per process, so for a
-strict global limit also set one in the proxy in front of the server.
+Processes do not share these counters. If you run several API processes, each process has its own limit. For a strict global limit, also set one in the proxy in front of the server.
 """
 
 import threading

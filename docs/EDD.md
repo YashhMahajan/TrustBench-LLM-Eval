@@ -48,8 +48,8 @@ trustbench run --model python:myapp.agent:answer@v1      # run it from your proj
 ```
 
 `@v1` is **your version label**. Change it when the behaviour changes. TrustBench stores answers, so a rerun costs nothing, and the label
-(or the git commit) is part of the stored key, so an old answer is never replayed into a new version. With no label, a clean git
-tree is used. With a dirty tree and no label nothing is stored.
+(or the git commit) is part of the stored key. So TrustBench never replays an old answer into a new version. With no label, it uses a clean git
+tree. With a dirty tree and no label, it stores nothing.
 
 A function may also take `system` (the system prompt of the run, from `--system-prompt-file`) so you can test prompt changes.
 `python:` and `http:` targets run **your** code and URLs, so only the command line and pytest can start them. The server never does.
@@ -112,7 +112,7 @@ Grow the dataset from production (step 5), not by writing cases in bulk.
 or an evaluator broke). A better version can still fail the gate. In the demo v1 is *better* than v0 (+54 points) and blocked, because
 it refunds amounts over the limit.
 
-A broken evaluator is reported and left out of the pass rate. A failed call to your app counts as a failed case.
+TrustBench reports a broken evaluator and leaves it out of the pass rate. A failed call to your app counts as a failed case.
 
 ## 5. Price the mistakes
 
@@ -137,14 +137,14 @@ The formula reproduces the published expense-audit example: $380,000 for the man
 
 **A config file.** `trustbench init` writes `trustbench.yaml` (targets, dataset, policy, run settings). Then `trustbench run` needs no flags.
 
-**pytest.** The plugin is installed with TrustBench:
+**pytest.** TrustBench installs the plugin:
 
 ```python
 def test_support_agent(trustbench):
     trustbench.assert_eval("datasets/support.jsonl", "python:myapp.agent:answer@v1", min_pass=0.9)
 ```
 
-A plain `pytest` **replays stored answers** (free, fast). If an answer is not stored the test fails and tells you to run `pytest --trustbench-live`
+A plain `pytest` **replays stored answers** (free, fast). If TrustBench has no stored answer, the test fails and tells you to run `pytest --trustbench-live`
 once. Live calls also need `--trustbench-live` or `TRUSTBENCH_LIVE=1`, and respect `--trustbench-budget USD`. The verdict comes from the release gate.
 
 **CI.** The reusable Action runs your candidate and a baseline on the same cases, applies the policy, and comments on the pull request
@@ -176,12 +176,12 @@ with tb.trace("support-bot", model="...") as t:
 
 Flagged traces (errors, thumbs down, failed online checks) appear in `trustbench traces flagged`. `traces promote TRACE --answer "..."` proposes a test,
 a person approves it (`proposals approve`), and `proposals export` writes a new dataset version. Nothing becomes a test without a person.
-Text is stored only if the workspace allows it (`workspace set --store-content`), after redaction.
+TrustBench stores text only if the workspace allows it (`workspace set --store-content`), and only after redaction.
 
 ## 8. Pitfalls
 
 - **Changing code without changing the label.** With `@v1` kept and the code changed, you replay old answers. Change the label, or use `--no-cache`.
-- **Judge calls are not stored.** A test that uses `rag_*` or `llm_judge` needs the judge's key even in replay mode. Prefer the rule-based checks where you can.
+- **TrustBench does not store judge calls.** A test that uses `rag_*` or `llm_judge` needs the judge's key even in replay mode. Prefer the rule-based checks where you can.
 - **A policy tighter than the data.** `maximum_regression: 0.05` with 50 cases can only ever say "inconclusive".
 - **Mixing up `positive`.** It marks cases where the right action is to refuse or escalate, not cases that "should pass".
 - **Trusting a judge you did not validate.** Run `trustbench validate-judge` against human labels first.

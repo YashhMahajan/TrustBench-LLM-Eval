@@ -51,7 +51,7 @@ def workspace_set(
     retention_days: int = typer.Option(None, help="Delete traces after this many days"),
     sample_rate: float = typer.Option(None, help="Share of traces for online evaluation, 0 to 1"),
 ):
-    """Change the data policy of a workspace. Only the options you give are changed."""
+    """Change the data policy of a workspace. The command changes only the options you give."""
     from .dataprotect import PolicyProblem
     from .dataprotect import policy_of
     from . import tenancy
@@ -72,7 +72,7 @@ def workspace_set(
 def key_create(workspace: str = typer.Option(..., help="Workspace name"), name: str = typer.Option("key", help="A label"),
                role: str = typer.Option("write", help="read, write or admin"),
                expires_days: float = typer.Option(None, "--expires-days", help="The key stops working after this many days")):
-    """Make an API key. It is shown once. Copy it now."""
+    """Make an API key. The command shows it once. Copy it now."""
     from . import tenancy
     factory = get_factory()
     try:
@@ -114,7 +114,7 @@ def key_revoke(key_id: int):
 
 @secrets_app.command("generate-key")
 def secrets_generate():
-    """Make an encryption key for stored content. Keep it safe: without it the content cannot be read."""
+    """Make an encryption key for stored content. Keep it safe. Without it, nobody can read the content."""
     from . import crypto
     console.print(crypto.generate_key())
     console.print("[dim]Set it as TRUSTBENCH_SECRET_KEY. To rotate, put the new key first: NEW,OLD[/dim]")
@@ -320,7 +320,7 @@ def traces_purge():
 @app.command()
 def monitor(workspace: str = typer.Argument("default"), days: float = typer.Option(7), name: str = typer.Option(None, help="Only traces of this feature"),
             as_json: bool = typer.Option(False, "--json")):
-    """The state of a production system: errors, latency, cost, online checks. Each number says how it was obtained."""
+    """The state of a production system: errors, latency, cost, online checks. Each number says how TrustBench got it."""
     import json
 
     from .monitor import monitor_summary

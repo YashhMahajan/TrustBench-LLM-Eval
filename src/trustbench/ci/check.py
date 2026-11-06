@@ -10,8 +10,7 @@ The candidate and its baseline are targets in trustbench.yaml, for example:
 
     trustbench ci check --target candidate --baseline-target main
 
-Both run on the same dataset version in the same job, so the comparison is paired. With no --baseline-target the
-`baseline:` name in the config is used, if it exists in the database. With neither, only the policy rules apply.
+Both run on the same dataset version in the same job. So the comparison uses pairs. With no --baseline-target, TrustBench uses the `baseline:` name in the config, if it exists in the database. With neither, only the policy rules apply.
 """
 
 from dataclasses import dataclass, field

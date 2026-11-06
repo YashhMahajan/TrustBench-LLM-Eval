@@ -1,8 +1,7 @@
 """Demo data: runs, decisions, proposals and production traces, with no API keys.
 
 Three pretend models answer the built-in suites through the real engine, evaluators, gate and
-analysis code. Only the answers are made up. They are made up by rules, with a fixed seed, so the
-same command gives the same data every time. The demo is for looking around. It says nothing about real models.
+analysis code. Only the answers are not real. Rules make them, with a fixed seed. So the same command gives the same data every time. The demo is for looking around. It says nothing about real models.
 """
 
 import hashlib

@@ -122,7 +122,7 @@ def case_outcomes(records: list[Record]) -> dict[str, float | None]:
     """One number for each case: the share of repetitions that passed.
 
     A failed model call counts as a fail, because the model gave no answer.
-    A skipped case or an evaluator problem is left out (None), because it says nothing about the model.
+    We leave out a skipped case or an evaluator problem (None), because it says nothing about the model.
     """
     by_case: dict[str, list[float]] = defaultdict(list)
     for r in records:

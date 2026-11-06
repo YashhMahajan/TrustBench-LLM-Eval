@@ -2,7 +2,7 @@
 
 The state the checks look at:
   output                          the final text
-  tools.<name>.count              how many times that tool was called (0 when never)
+  tools.<name>.count              how many times the app called that tool (0 when never)
   tools.<name>.last.args.<key>    the arguments of its last call
   tools.<name>.last.result        what its last call returned (and .result.<key> if it is an object)
   tools.<name>.last.error         its error, or None
@@ -31,7 +31,7 @@ def build_state(output: str, tool_calls: list[dict]) -> dict:
 
 
 def resolve(state: dict, path: str):
-    """Follow a dotted path. A tool that was never called reads as {count: 0, last: None}."""
+    """Follow a dotted path. TrustBench reads a tool that the app never called as {count: 0, last: None}."""
     parts = path.split(".")
     cur = state
     for i, part in enumerate(parts):

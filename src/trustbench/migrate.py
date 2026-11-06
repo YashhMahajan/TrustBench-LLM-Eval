@@ -4,8 +4,8 @@
   trustbench db status    show the version of the database and of the code
   trustbench db check     show where the database differs from the models
 
-Commands that open the database (run, serve, worker, ...) call ensure_schema(). A new database is created.
-An old one is upgraded. A database made before migrations existed is accepted if it matches the models.
+Commands that open the database (run, serve, worker, ...) call ensure_schema(). The command creates a new database and upgrades an old one.
+It accepts a database that we made before migrations existed, if it matches the models.
 """
 
 from pathlib import Path

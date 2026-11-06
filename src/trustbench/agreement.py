@@ -13,7 +13,7 @@ def percent_agreement(a: Sequence, b: Sequence) -> float | None:
 
 
 def cohens_kappa(a: Sequence[Hashable], b: Sequence[Hashable]) -> float | None:
-    """For labels without order. Returns None when kappa is undefined."""
+    """For labels without order. Return None when kappa has no value."""
     n = len(a)
     if n == 0 or len(b) != n:
         return None

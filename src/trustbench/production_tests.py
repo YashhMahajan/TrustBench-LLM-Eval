@@ -7,7 +7,7 @@
   5. run + gate          the next release must pass the old failure
 
 A case needs stored text, so the workspace must have store_content on. The text is already
-redacted. If personal data is still found in it, the case is refused.
+redacted. If the text still has personal data, we refuse the case.
 """
 
 from dataclasses import dataclass

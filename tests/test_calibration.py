@@ -79,7 +79,7 @@ def test_calibration_command_on_a_real_run(tmp_path, monkeypatch):
     from trustbench.cli import app
     monkeypatch.setenv("TRUSTBENCH_DATABASE_URL", f"sqlite:///{tmp_path}/t.db")
     runner = CliRunner()
-    # The mock model does not follow the format, so no confidence can be read.
+    # The mock model does not follow the format, so the code cannot read a confidence.
     out = runner.invoke(app, ["run", "--dataset", "calibration", "--model", "mock:smoke"])
     run_id = out.output.split("Run ")[1].split()[0].strip("│ ")
     res = runner.invoke(app, ["calibration", run_id])

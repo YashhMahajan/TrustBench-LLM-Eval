@@ -78,7 +78,7 @@ def test_a_body_without_a_length_is_stopped_while_it_arrives(world):
     factory, keys = world
     client = TestClient(create_app(factory, rate_limit=0, max_body_bytes=1000))
 
-    def chunks():                                               # No Content-Length: the size is not known at the start.
+    def chunks():                                               # No Content-Length: we do not know the size at the start.
         for _ in range(50):
             yield b"x" * 100
 
@@ -111,7 +111,7 @@ def test_api_answers_carry_security_headers(world):
     assert r.headers["x-frame-options"] == "DENY"
     assert r.headers["cache-control"] == "no-store"            # An answer holds private data. No cache may keep it.
     assert "default-src 'none'" in r.headers["content-security-policy"]
-    assert "strict-transport-security" not in r.headers        # Only when we are told the client used https.
+    assert "strict-transport-security" not in r.headers        # Only when someone tells us that the client used https.
     r = client.get("/v1/health", headers={"x-forwarded-proto": "https"})
     assert "max-age" in r.headers["strict-transport-security"]
 

@@ -26,7 +26,7 @@ class RunSettings(BaseModel):
     budget: float | None = Field(default=None, gt=0)   # Stop starting calls after this many USD.
     rpm: float | None = Field(default=None, gt=0)      # Most calls to start in a minute for each provider.
     cache: bool = True
-    system_prompt_file: str | None = None            # A file with the system prompt. Its text is stored with the run.
+    system_prompt_file: str | None = None            # A file with the system prompt. The run keeps its text.
 
     def merged(self, **flags) -> "RunSettings":
         """These settings with command line flags on top. A flag that is None means: not given."""

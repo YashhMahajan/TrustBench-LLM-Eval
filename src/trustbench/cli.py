@@ -43,8 +43,8 @@ def run(
     name: str = typer.Option(None, help="A label for the run"),
     judge: str = typer.Option(None, help="provider:model that grades open answers"),
     rpm: float = typer.Option(None, help="Most calls to start in one minute for each provider"),
-    system_prompt_file: Path = typer.Option(None, "--system-prompt-file", help="A file with the system prompt. Its text is stored with the run."),
-    no_cache: bool = typer.Option(False, "--no-cache", help="Ask the model again, even when the answer is stored"),
+    system_prompt_file: Path = typer.Option(None, "--system-prompt-file", help="A file with the system prompt. The run keeps its text."),
+    no_cache: bool = typer.Option(False, "--no-cache", help="Ask the model again, even when TrustBench has the answer"),
 ):
     """Run a dataset against your models or apps. Reads trustbench.yaml when it exists. Flags win over the file."""
     from .edd.config import ConfigError, RunSettings, load_config
@@ -98,8 +98,8 @@ def _stopped(e) -> None:
 
 
 @app.command()
-def resume(run_id: str, budget: float = typer.Option(None, help="A new budget in USD for the part that is left")):
-    """Finish a run that stopped (Ctrl-C, a crash or a budget). Finished cases are not run again."""
+def resume(run_id: str, budget: float = typer.Option(None, help="A new budget in USD for the rest of the run")):
+    """Finish a run that stopped (Ctrl-C, a crash or a budget). TrustBench does not run finished cases again."""
     from .engine import RunInterrupted, resume_run
     from .providers import allow_app_targets
     allow_app_targets()
@@ -137,7 +137,7 @@ app.add_typer(cache_app, name="cache")
 
 @cache_app.command("stats")
 def cache_stats():
-    """Show how many answers are stored."""
+    """Show how many answers TrustBench keeps."""
     from sqlalchemy import func, select
     from .db import ResponseCache
     with _factory()() as s:
@@ -149,7 +149,7 @@ def cache_stats():
 @cache_app.command("clear")
 def cache_clear(model: str = typer.Option(None, help="Only this provider:model"),
                 yes: bool = typer.Option(False, "--yes", help="Do not ask")):
-    """Delete stored answers. Runs keep their results. Only new requests are affected."""
+    """Delete stored answers. Runs keep their results. This changes only new requests."""
     from sqlalchemy import delete
     from .db import ResponseCache
     from .providers import split_spec

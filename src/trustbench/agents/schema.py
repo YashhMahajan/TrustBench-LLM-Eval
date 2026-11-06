@@ -5,7 +5,7 @@ from .eval_tool_call import validate_expected_calls
 
 
 def validate_agent_fields(inp: dict, expected: dict, evaluation: dict) -> None:
-    """Raise ValueError with a clear message if messages, tool calls, trajectory or checks are malformed."""
+    """Raise ValueError with a clear message when messages, tool calls, trajectory or checks are wrong."""
     if "messages" in inp:
         msgs = inp["messages"]
         if not isinstance(msgs, list) or not msgs:

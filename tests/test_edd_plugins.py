@@ -70,7 +70,7 @@ def test_a_broken_plugin_is_recorded_and_the_others_still_load(isolated, monkeyp
     offer(monkeypatch, FakeEntryPoint("broken", broken), FakeEntryPoint("good", good_plugin))
     assert plugins.load_evaluator_plugins() == ["good"]
     assert "RuntimeError: boom" in plugins.PLUGIN_ERRORS["broken"]
-    assert "half_registered" not in EVALUATORS and "my_check" in EVALUATORS      # What the broken plugin added is removed.
+    assert "half_registered" not in EVALUATORS and "my_check" in EVALUATORS      # TrustBench removes what the broken plugin added.
 
 
 def test_a_plugin_cannot_replace_a_builtin_evaluator(isolated, monkeypatch):

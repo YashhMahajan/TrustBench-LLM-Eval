@@ -29,7 +29,7 @@ jobs:
       - name: Install the exact versions we tested
         run: python -m pip install -c requirements.lock -e ".[dev]"
       - name: Lint
-        run: ruff check src tests examples
+        run: ruff check src tests examples scripts
       - name: Tests
         run: python -m pytest -q
       - name: Self-test (does TrustBench measure correctly?)

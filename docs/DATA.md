@@ -31,7 +31,7 @@ Fields in `expected` by evaluator:
 | `numeric` | `number` |
 | `abstain` | `abstain` (true/false) |
 | `grounded_claims` | `input.context` or `expected.evidence` |
-| `tool_call` | `tool_calls: [{"name", "args": {key: value-or-matcher}}]`. An empty list means no tool may be called. |
+| `tool_call` | `tool_calls: [{"name", "args": {key: value-or-matcher}}]`. An empty list means that the app must call no tool. |
 | `trajectory` | `trajectory: ["tool", ...]` and spec `order`, `max_steps`, `max_repeats` |
 | `task_success` | `final_state: {"path": value}` or spec `checks` |
 | `rag_*` | `required_facts` or `answer` (recall). Documents come from the `retrieval` span or `input.context`. |
@@ -108,7 +108,7 @@ response_cache  (shared answer cache, keyed by a hash)
 
 Bold columns arrived in migration 0005. The `experiments` table arrived in migration 0006.
 
-The system prompt of a run is stored in `evaluation_runs.config_snapshot.options.system_prompt` (the text, not only a hash).
+TrustBench keeps the system prompt of a run in `evaluation_runs.config_snapshot.options.system_prompt`. It keeps the text, not only a hash.
 
 ## 4. The cache key
 
@@ -119,19 +119,19 @@ The system prompt of a run is stored in `evaluation_runs.config_snapshot.options
 | A model (`openai:...`) | empty (keys are the same as before Phase 8) |
 | `python:...@label` | `v=<label>\|git=<HEAD commit>` |
 | `python:...` clean git tree | `git=<HEAD commit>` |
-| `python:...` dirty tree or no git, no label | none. The answer is **not** cached. |
+| `python:...` dirty tree or no git, no label | none. TrustBench does **not** cache the answer. |
 | `http:...@label` | `v=<label>\|url=<hash of URL>` |
 | `http:...` without a label | none. Not cached. |
 | `mock` and other non-cacheable providers | none. Not cached. |
 
-A failed call is never cached.
+TrustBench never caches a failed call.
 
 ## 5. Privacy and retention
 
 - Evaluation runs store outputs as they are. Do not put secrets in test data.
-- Production traces: personal data and secrets are redacted before storage (`redact.py`, pattern based). Content can be encrypted (`crypto.py`).
+- Production traces: TrustBench redacts personal data and secrets before it stores them (`redact.py`, pattern based). You can encrypt the content (`crypto.py`).
 - Each workspace has a data policy (`dataprotect.py`): what to keep and for how long. `trustbench traces purge` and the worker delete old traces.
-- Every change to keys or settings is written to `audit_log`.
+- TrustBench writes every change to keys or settings to `audit_log`.
 
 ## 6. Rules for changing the data model
 

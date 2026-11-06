@@ -1,4 +1,4 @@
-"""Claim-level groundedness: every claim in the answer is checked against the evidence."""
+"""Claim-level groundedness: we check every claim in the answer against the evidence."""
 
 from .claims import extract_claims, sentence_claims
 from .evaluators import Ctx, Outcome, register

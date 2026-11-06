@@ -81,7 +81,7 @@ def test_rule_checks_are_measured_and_judge_checks_are_estimated_and_the_gaps_ar
     for i in range(4):
         add_eval(factory, ws, f"t{i}", "rule", passed=i != 0, kind="measured")
     add_eval(factory, ws, "t5", "grounded_claims", True, "estimated")
-    add_eval(factory, ws, "t6", "llm_judge", True, "estimated", error=True)           # A broken evaluator is not counted.
+    add_eval(factory, ws, "t6", "llm_judge", True, "estimated", error=True)           # The count leaves out a broken evaluator.
     d = monitor_summary(factory, ws.id, 7, now=NOW)
     rule = d["measured"]["check:rule"]
     assert (rule["pass_rate"]["k"], rule["pass_rate"]["n"], rule["coverage"]) == (3, 4, 0.4)

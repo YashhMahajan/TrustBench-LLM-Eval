@@ -6,8 +6,8 @@ For a case with a context we ask in order:
   3. Is every claim supported by the context?      no -> ungrounded_generation
 This blames the first stage that failed. It is a diagnosis from the case design, not proof of the cause.
 
-If the case lists retrieved document ids (input.retrieved_ids) and the right ones (expected.gold_doc_ids),
-the retrieval metrics below are computed too.
+If the case lists the ids of the retrieved documents (input.retrieved_ids) and the right ones (expected.gold_doc_ids),
+the code also computes the retrieval metrics below.
 """
 
 import math
@@ -35,7 +35,7 @@ def reciprocal_rank(retrieved: list[str], gold: list[str]) -> float:
 
 
 def ndcg_at_k(retrieved: list[str], gold: list[str], k: int) -> float | None:
-    """Binary relevance. 1 means that all right documents are ranked first."""
+    """Binary relevance. 1 means that the ranking puts all right documents first."""
     if not gold:
         return None
     dcg = sum(1 / math.log2(i + 1) for i, d in enumerate(retrieved[:k], start=1) if d in gold)

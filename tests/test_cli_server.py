@@ -19,7 +19,7 @@ def test_workspace_and_key_flow(tmp_path, monkeypatch):
     factory = init_db(make_engine(url))
     assert authenticate(factory, token).role == "write"
     listing = runner.invoke(app, ["key", "list"])
-    assert "ci" in listing.output and token not in listing.output and token[:11] in listing.output     # Only the start is shown.
+    assert "ci" in listing.output and token not in listing.output and token[:11] in listing.output     # The command shows only the start.
     assert runner.invoke(app, ["key", "revoke", "1"]).exit_code == 0
     assert authenticate(factory, token) is None
     assert runner.invoke(app, ["key", "create", "--workspace", "nope"]).exit_code == 1

@@ -4,9 +4,9 @@ expected.trajectory: ["lookup_order", "refund"]    tool names, in the order we e
 spec:
   order: exact | in_order | any_order | contains    (default in_order)
       exact      the app called exactly these tools in this order
-      in_order   these tools appear in this order; other calls may sit between them
+      in_order   these tools appear in this order, and other calls may sit between them
       any_order  the same tools, in any order, and no others
-      contains   these tools appear in any order; other calls are allowed
+      contains   these tools appear in any order, and the app may call other tools
   max_steps: 6        most tool calls allowed (counts every call)
   max_repeats: 2      most times the same tool may be called with the same arguments (default 2). More is a loop.
 """
@@ -24,7 +24,7 @@ def is_subsequence(want: list, got: list) -> bool:
 
 
 def find_loops(calls: list[dict], max_repeats: int) -> list[str]:
-    """Tools that were called with the same arguments more than `max_repeats` times."""
+    """Tools that the app called with the same arguments more than `max_repeats` times."""
     seen = Counter((c.get("name"), repr(sorted((c.get("args") or {}).items(), key=lambda kv: kv[0]))) for c in calls)
     return sorted({name for (name, _), n in seen.items() if n > max_repeats})
 

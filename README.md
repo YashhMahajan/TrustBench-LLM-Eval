@@ -27,7 +27,7 @@ No key? Try the demo: `trustbench run --model mock:smoke`
 | `trustbench results RUN_ID` | Show the result of each case |
 | `trustbench show RUN_ID CASE_ID` | Explain one case: answer, scores, reasons, claims |
 | `trustbench rescore RUN_ID` | Score stored outputs again. No model calls. |
-| `trustbench resume RUN_ID` | Finish a run that stopped (Ctrl-C, crash, budget). Finished cases are not called again. |
+| `trustbench resume RUN_ID` | Finish a run that stopped (Ctrl-C, crash, budget). TrustBench does not call finished cases again. |
 | `trustbench cache stats / clear` | Stored model answers. A repeated request costs nothing. |
 | `trustbench check DATASET` | Find duplicates, conflicts, missing references, personal data |
 | `trustbench annotations export RUN_ID` | Write a CSV for human labels |
@@ -111,25 +111,27 @@ Every pass rate has a 95% interval and the number of cases. A small run gives a 
 | inconclusive | The evidence is too weak to decide. This blocks the release by default. |
 | incomplete | The run did not finish, or an evaluator broke |
 
-A failed model call counts as a failed case. A skipped case or a broken evaluator is left out and reported, because it says nothing about the model.
+A failed model call counts as a failed case. TrustBench leaves out a skipped case or a broken evaluator and reports it, because it says nothing about the model.
 
 ## Find weak spots
 
-**Is the model stable?** `trustbench robustness build grounded` writes `grounded_robust.jsonl`: the original cases plus copies with extra spaces, a different wrapper, typos, shuffled sentences or the answer moved or hidden. Every copy is checked, so the right answer does not change. Run that file, then `trustbench robustness report RUN_ID`.
+**Is the model stable?** `trustbench robustness build grounded` writes `grounded_robust.jsonl`: the original cases plus copies with extra spaces, a different wrapper, typos, shuffled sentences or the answer moved or hidden. TrustBench checks every copy, so the right answer does not change. Run that file, then `trustbench robustness report RUN_ID`.
 
 A model that passes the original but fails a copy is fragile. The report keeps four numbers apart: break rate, degradation, consistency (a model can be consistent and consistently wrong) and the weakest transform.
 
-**Why did cases fail?** `trustbench failures RUN_ID` gives each failed case labels (wrong answer, unsupported claim, followed an injection, ...), groups similar failures, says if the evidence reached the model, and ranks what to fix first. The ranking shows its four factors: severity, frequency, exposure and detectability. Patterns show what failures share. They do not prove a cause.
+**Why did cases fail?** `trustbench failures RUN_ID` gives each failed case labels (wrong answer, unsupported claim, followed an injection, and so on). It groups similar failures. It says if the evidence reached the model. It ranks what to fix first. The ranking shows its four factors: severity, frequency, exposure and detectability.
 
-**Keep old failures fixed.** `trustbench proposals generate RUN_ID` proposes new cases from failed ones. Nothing joins a dataset until a person approves it. Answers that a model wrote must be checked by a person first. `trustbench proposals export DATASET` writes the approved cases as a new dataset version.
+Patterns show what failures share. They do not prove a cause.
 
-**Which model is worth its price?** `trustbench frontier RUN_ID --min-quality 0.9 --max-cost 0.01` lists the models that nobody beats on quality, cost and latency together. A model with no known price is listed apart. An unknown cost is never counted as zero.
+**Keep old failures fixed.** `trustbench proposals generate RUN_ID` proposes new cases from failed ones. Nothing joins a dataset until a person approves it. A person must check the answers that a model wrote. `trustbench proposals export DATASET` writes the approved cases as a new dataset version.
+
+**Which model is worth its price?** `trustbench frontier RUN_ID --min-quality 0.9 --max-cost 0.01` lists the models that nobody beats on quality, cost and latency together. The list shows a model with no known price apart. TrustBench never counts an unknown cost as zero.
 
 The `injection` suite checks only what the model writes. It does not test your permissions, your sandbox or your data limits.
 
 ## The dashboard
 
-A web dashboard shows everything above: release readiness, runs with intervals, the cases behind every number, comparisons, the gate history, production monitoring, drift, proposed tests to review, and the cost frontier. It runs as its own small server (Next.js) and talks to the API.
+A web dashboard shows everything above. It has release readiness, runs with intervals, and the cases behind every number. It also has comparisons, the gate history, production monitoring, drift, proposed tests to review, and the cost frontier. It runs as its own small server (Next.js) and talks to the API.
 
 Try it with sample data (no API keys needed):
 
@@ -140,7 +142,7 @@ trustbench serve                     # the API, on port 8000
 cd dashboard && pnpm install && pnpm dev     # the dashboard, on port 3000
 ```
 
-Open http://localhost:3000 and paste the key. The demo models are made up. The data shows how TrustBench works. It says nothing about real models.
+Open http://localhost:3000 and paste the key. The demo models are not real. The data shows how TrustBench works. It says nothing about real models.
 
 For your own data, use your own workspace and key: `trustbench key create --workspace default --role read`. Results from `trustbench run` belong to the workspace `default`.
 
@@ -148,9 +150,11 @@ For your own data, use your own workspace and key: `trustbench key create --work
 |---|---|
 | `TRUSTBENCH_API_URL` | Where the dashboard finds the API. Default `http://127.0.0.1:8000` |
 
-How to read the screens: every rate is drawn as a bar with its 95% interval and its number of cases. A short bar is a sure result. A solid bar is measured, a hatched bar is a judge model's estimate, and a dotted outline is something nobody measured. Verdicts are stamps: pass, fail, inconclusive, incomplete. The key is kept in a cookie that scripts in the browser cannot read.
+How to read the screens: every rate is drawn as a bar with its 95% interval and its number of cases. A short bar is a sure result.
 
-Only an admin key can change settings. A read key cannot approve tests. Keys are made and revoked in a terminal.
+A solid bar is a measurement. A hatched bar is the estimate of a judge model. A dotted outline is something that nobody measured. Verdicts are stamps: pass, fail, inconclusive, incomplete. The dashboard keeps the key in a cookie that scripts in the browser cannot read.
+
+Only an admin key can change settings. A read key cannot approve tests. You make and revoke keys in a terminal.
 
 ## Watch a system in production
 
@@ -179,18 +183,18 @@ Only an admin key can change settings. A read key cannot approve tests. Keys are
 ### What we store
 
 The default is the safest. A workspace stores **measurements only**: time, size, tokens, cost, status. It stores **no text**.
-To keep text, an admin turns it on. The text is then redacted (emails, phone numbers, cards, secrets and more are replaced by markers) and encrypted with your key before it reaches the database.
+To keep text, an admin turns it on. TrustBench then redacts the text and encrypts it with your key before it reaches the database. Redaction replaces emails, phone numbers, cards, secrets and more with markers.
 
 ```bash
 trustbench secrets generate-key                 # put the result in TRUSTBENCH_SECRET_KEY
 trustbench workspace set acme --store-content --retention-days 14 --sample-rate 0.1
 ```
 
-Old traces are deleted after the retention time. Reading stored text needs an admin key, and every read is written to an audit log. A key sees only its own workspace.
+TrustBench deletes old traces after the retention time. Reading stored text needs an admin key, and every read goes to an audit log. A key sees only its own workspace.
 
 ### Online checks and what they mean
 
-A sample of the traffic is checked while it runs. With no reference answers, only some checks are possible, and each result says how sure we are:
+TrustBench checks a sample of the traffic while it runs. With no reference answers, only some checks are possible, and each result says how sure we are:
 
 | Kind | Example | Meaning |
 |---|---|---|
@@ -211,24 +215,24 @@ Tasks wait in the database by default. For many workers on a busy queue set `TRU
 ### Limits
 
 - Redaction finds patterns (emails, numbers, secrets). It does not find names or addresses in free text.
-- The server has no TLS. Put it behind a proxy. Rate limits and the lock after wrong keys are counted in one server process: with several API processes, each counts for itself.
-- The Redis queue is tested against an in-memory copy of the Redis commands it uses, not against a Redis server.
-- PostgreSQL is tested only as far as the generated SQL (every table, index and key query compiles for PostgreSQL). It was not run against a PostgreSQL server.
-- The Docker files were written and the compose file was validated, but the images were not built here.
+- The server has no TLS. Put it behind a proxy. One server process counts the rate limits and the lock after wrong keys. With several API processes, each process counts for itself.
+- Tests use an in-memory copy of the Redis commands of the queue. They do not use a Redis server.
+- Tests check PostgreSQL only as far as the generated SQL (every table, index and key query compiles for PostgreSQL). We did not run it against a PostgreSQL server.
+- We wrote the Docker files and validated the compose file. We did not build the images here.
 
 ## Check that TrustBench itself is right
 
-A reliability tool must show that its own numbers are valid. `trustbench selftest` builds data where the truth is known and runs the real code on it:
+A reliability tool must show that its own numbers are valid. `trustbench selftest` builds data where we know the truth. It runs the real code on that data:
 
 - a 95% interval contains the truth about 95% of the time, also for small samples and extreme cases
-- two equal systems are rarely called different. A real drop is found. False discoveries stay under control
-- every evaluator agrees with a gold set. Planted personal data is removed. Ordinary text is not damaged
-- each kind of injected failure (invalid JSON, a faulty prompt, a wrong reference, lost evidence, abstention) is named, blamed on the right stage and never allowed through the gate
-- test copies never change the right answer. Planted dataset defects are found
-- the rules that make results auditable hold. Workspaces cannot read each other. Retention is exact. No task is lost when a worker dies
+- the test rarely calls two equal systems different. It finds a real drop. It keeps false discoveries under control
+- every evaluator agrees with a gold set. Redaction removes planted personal data. It does not damage ordinary text
+- TrustBench names each kind of injected failure (invalid JSON, a faulty prompt, a wrong reference, lost evidence, abstention). It blames the right stage. The gate never lets it through
+- test copies never change the right answer. The checks find planted dataset defects
+- the rules that make results auditable hold. Workspaces cannot read each other. Retention is exact. A worker that dies loses no task
 - a repeated or resumed run never pays for the same model call twice
 
-The targets are fixed from theory before the numbers are seen. The checks are themselves tested by breaking the code on purpose: each check must fail when the code it watches is wrong. The self-test has already found two real flaws, which are fixed: PSI drift was too high on small samples, and a bootstrap interval claimed certainty when 8 of 8 cases moved the same way.
+We fix the targets from theory before we see the numbers. The checks are themselves tested by breaking the code on purpose: each check must fail when the code it watches is wrong. The self-test has already found two real flaws. We fixed both. PSI drift was too high on small samples. A bootstrap interval claimed certainty when 8 of 8 cases moved the same way.
 
 ```bash
 trustbench selftest            # about 2 seconds. Add --quick for fewer simulations, --area statistics for one area, --json for a machine
@@ -236,7 +240,7 @@ trustbench selftest            # about 2 seconds. Add --quick for fewer simulati
 
 ## Database versions
 
-The tables are versioned with Alembic. Commands that open a real database create it or upgrade it. Check the state with `trustbench db status`, see differences with `trustbench db check`, and give a database administrator the PostgreSQL SQL with `trustbench db sql`. A database that is newer than the program is refused. Changing a model needs a new file in `src/trustbench/migrations/versions/`: a test fails if you forget.
+Alembic versions the tables. Commands that open a real database create it or upgrade it. Check the state with `trustbench db status`, see differences with `trustbench db check`, and give a database administrator the PostgreSQL SQL with `trustbench db sql`. TrustBench refuses a database that is newer than the program. Changing a model needs a new file in `src/trustbench/migrations/versions/`: a test fails if you forget.
 
 ## Run everything with Docker
 
@@ -250,7 +254,7 @@ Open http://localhost:3000. The ports are open on your machine only. For many wo
 
 ## Share a run
 
-`trustbench export RUN_ID` writes a report that someone who was not there can read: the numbers with their intervals, how cases failed, release decisions, and how to repeat the run. The dashboard has the same under “Download report”. Add `--format json` for a machine.
+`trustbench export RUN_ID` writes a report for a reader who was not there. It has the numbers with their intervals, how cases failed, release decisions, and how to repeat the run. The dashboard has the same under “Download report”. Add `--format json` for a machine.
 
 ## Built-in suites
 
@@ -281,12 +285,12 @@ A judge can be wrong. Label some answers by hand, then run `validate-judge` to s
 | `TRUSTBENCH_DATABASE_URL` | Database. Default: the Postgres from `docker-compose.yml` |
 | `TRUSTBENCH_LOCAL_BASE_URL` | URL of a local OpenAI-compatible server (`local:` models) |
 | `TRUSTBENCH_PRICES` | JSON that sets prices: `{"model": [input, output]}` per 1M tokens |
-| `TRUSTBENCH_TRUSTED_PROXIES` | Proxies (addresses or networks, separated by commas) whose `X-Forwarded-For` header we believe. Default: none. Set it when a proxy or the dashboard sits in front of the API, or all visitors look like one address |
+| `TRUSTBENCH_TRUSTED_PROXIES` | Proxies (addresses or networks, separated by commas) whose `X-Forwarded-For` header we believe. Default: none. Set it when a proxy or the dashboard sits in front of the API. Without it, all visitors look like one address |
 | `TRUSTBENCH_RATE_LIMIT` | Requests for each API key each minute. Default 600. 0 turns it off |
 
 ## Speed
 
-A 20,000-case run is saved in 2.7 seconds (it was 17). A list of runs answers in 30 ms (it was 43 s). Details, numbers and the reasons are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+TrustBench saves a 20,000-case run in 2.7 seconds (it took 17). A list of runs answers in 30 ms (it was 43 s). Details, numbers and the reasons are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 ## What it does well, and what it does not
 
@@ -295,7 +299,12 @@ judge validation against human labels, robustness tests, calibration, failure an
 multi-tenant keys, and a self-test that proves the numbers and is itself tested by breaking the code.
 
 **Narrower than other tools:** fewer public benchmarks than lm-evaluation-harness or Inspect AI, no red-team prompt generator, and no community yet
-(there is a plugin entry point for evaluators, and a YAML config for runs, but test cases are still JSONL, not a YAML test file like Promptfoo).
+There is a plugin entry point for evaluators and a YAML config for runs. Test cases are still JSONL, not a YAML test file like Promptfoo.
 
-**Not verified here:** a call to a live provider (no key was used), a real PostgreSQL server, a real Redis server, the Docker images (the files are checked, not built), and the GitHub workflow and Action (never run on GitHub).
+**Not verified here:**
+
+- A call to a live provider. We used no key.
+- A real PostgreSQL server and a real Redis server.
+- The Docker images. We checked the files but did not build them.
+- The GitHub workflow and Action. We never ran them on GitHub.
 The dashboard typechecks and builds. See [docs/ISSUES.md](docs/ISSUES.md). Run `trustbench selftest` and `pytest` first on your machine, then try one small real run.

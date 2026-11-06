@@ -5,9 +5,9 @@ The retrieved documents come from the app's `retrieval` span, so you do not copy
     with span("retrieval", "search_kb", docs=[doc.text for doc in hits]):     # docs: strings or {"id", "text"}
         ...
 
-If the app records no retrieval span, input.context is used.
+If the app records no retrieval span, TrustBench uses input.context.
 
-  rag_faithfulness       Every claim in the answer is supported by the retrieved documents.
+  rag_faithfulness       The retrieved documents support every claim in the answer.
                          spec: max_unsupported (default 0). A contradicted claim always fails.
   rag_answer_relevance   The answer addresses the question.            spec: min_score (0 to 3, default 2)
   rag_context_precision  The retrieved documents are useful.           spec: min (default 0.5)

@@ -1,4 +1,4 @@
-"""Indexes that match how the data is read.
+"""Indexes that match how the code reads the data.
 
 A composite index answers a query that filters on its first column and sorts or filters
 on the next ones. It also replaces the single-column index on its first column, so we

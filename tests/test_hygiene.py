@@ -86,6 +86,6 @@ def test_env_files_are_not_tracked_and_the_example_has_no_real_values():
 
 @pytest.mark.parametrize("name", ["cors", "allow_origins"])
 def test_the_api_does_not_open_cors_to_every_site(name):
-    """The dashboard calls the API from its own server, not from the browser, so no CORS is needed. '*' would be a hole."""
+    """The dashboard calls the API from its own server, not from the browser, so it needs no CORS. '*' would be a hole."""
     source = (ROOT / "src/trustbench/api.py").read_text() + (ROOT / "src/trustbench/api_data.py").read_text()
     assert name not in source.lower()

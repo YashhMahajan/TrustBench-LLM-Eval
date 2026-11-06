@@ -5,13 +5,13 @@ Two backends with the same interface:
   RedisQueue  uses Redis. Use it when many workers share a busy queue.
 Choose Redis by setting TRUSTBENCH_REDIS_URL (and install the extra: pip install 'trustbench[redis]').
 
-How a task is handled:
-  - a worker takes (claims) a task. The task is invisible to other workers for a lease time
-  - if the worker finishes, the task is done
-  - if the handler fails, the task waits and is tried again later, up to max_attempts
-  - if the worker dies, the lease ends and another worker takes the task
-  - a task that fails too often is dead. Dead tasks are kept so that a person can look at them
-Tasks run at least once. A handler must be safe to run twice.
+How a worker handles a task:
+  - The worker takes (claims) a task. Other workers cannot see the task for a lease time.
+  - If the worker finishes, the task is done.
+  - If the handler fails, the task waits. The worker tries again later, up to max_attempts.
+  - If the worker dies, the lease ends. Another worker takes the task.
+  - A task that fails too often is dead. The queue keeps dead tasks, so that a person can look at them.
+A task runs at least once. A handler must be safe to run twice.
 """
 
 import datetime as dt
@@ -142,8 +142,12 @@ class DbQueue:
 class RedisQueue:
     """The same queue in Redis. It uses only simple commands, and the atomic ZREM decides who wins a task.
 
-    Keys: tb:seq (counter), tb:ready (sorted set: score = time to run), tb:running (sorted set: score = lease end),
-    tb:job:ID (hash with the task), tb:dead (set).
+    Keys:
+      tb:seq       a counter
+      tb:ready     a sorted set. The score is the time to run.
+      tb:running   a sorted set. The score is the end of the lease.
+      tb:job:ID    a hash with the task
+      tb:dead      a set
     """
 
     def __init__(self, client=None, url: str | None = None, prefix: str = "tb"):
@@ -252,7 +256,7 @@ Handler = Callable[[dict, Job], None]
 def run_worker(queue: JobQueue, handlers: dict[str, Handler], worker_id: str | None = None, concurrency: int = 2,
                poll_interval: float = 1.0, stop: threading.Event | None = None, max_jobs: int | None = None,
                idle_exit: bool = False, periodic: list[tuple[float, Callable[[], None]]] | None = None) -> int:
-    """Work until stopped. Returns the number of tasks that were handled.
+    """Work until stopped. Return the number of tasks that the worker handled.
 
     max_jobs     stop after this many tasks (for tests and one-off runs)
     idle_exit    stop when the queue is empty
@@ -281,7 +285,7 @@ def run_worker(queue: JobQueue, handlers: dict[str, Handler], worker_id: str | N
                 continue
             try:
                 handlers[job.kind](job.payload, job)
-            except Exception as e:      # Any error of a handler is recorded. The worker goes on.
+            except Exception as e:      # The worker records any error of a handler. The worker goes on.
                 try:
                     state = queue.fail(job.id, f"{type(e).__name__}: {e}")
                     log.warning("job %s (%s) failed on attempt %d: %s -> %s", job.id, job.kind, job.attempts, e, state)
