@@ -181,6 +181,25 @@ class Baseline(Base):
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
 
 
+class Experiment(Base):
+    """A named variant of the system under test (v0, v1, ...), linked to its run and to the variant it changed.
+
+    This is the history of an EDD session: what we tried, why, and what the evidence said. Rows are never changed.
+    """
+
+    __tablename__ = "experiments"
+    __table_args__ = (Index("ix_experiments_workspace_name", "workspace_id", "name"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    name: Mapped[str] = mapped_column(String(100))
+    run_id: Mapped[str] = mapped_column(ForeignKey("evaluation_runs.id"))
+    model: Mapped[str | None] = mapped_column(String(250), nullable=True)
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("experiments.id"), nullable=True)
+    hypothesis: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
+
+
 class ReleaseDecision(Base):
     """What the gate decided, with the policy and the evidence. Rows are never changed."""
 

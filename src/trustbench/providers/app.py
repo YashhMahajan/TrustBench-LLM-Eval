@@ -8,6 +8,7 @@ replays old answers. Without a label we use the git commit, and we turn the cach
 
 A python target receives the prompt. It may return text, or a dict {"output", "tool_calls", "spans"}.
 If its signature has a `case_input` parameter, it also receives the full case input (for example messages).
+If it has a `system` parameter, it receives the system prompt of the run (`--system-prompt-file`), so you can test prompt changes.
 """
 
 import functools
@@ -93,7 +94,9 @@ class PythonAppProvider(Provider):
 
     async def generate(self, req: GenRequest) -> GenResponse:
         fn = self._load(req.model)
-        kwargs = {"case_input": req.input} if "case_input" in inspect.signature(fn).parameters else {}
+        params = inspect.signature(fn).parameters
+        kwargs = {**({"case_input": req.input} if "case_input" in params else {}),
+                  **({"system": req.system} if "system" in params else {})}
         t0 = time.perf_counter()
         with recording() as rec:
             try:
@@ -110,7 +113,7 @@ class PythonAppProvider(Provider):
 
 
 class HttpAppProvider(Provider):
-    """POSTs {"prompt", "input"} to a service. It answers {"output", "tool_calls", "spans"} or plain text."""
+    """POSTs {"prompt", "input", "system"} to a service. It answers {"output", "tool_calls", "spans"} or plain text."""
 
     name = "http"
 
@@ -127,7 +130,7 @@ class HttpAppProvider(Provider):
         url, _ = split_version(req.model)
         t0 = time.perf_counter()
         try:
-            r = await self._client.post(url, json={"prompt": req.prompt, "input": req.input}, timeout=req.timeout)
+            r = await self._client.post(url, json={"prompt": req.prompt, "input": req.input, "system": req.system}, timeout=req.timeout)
         except httpx.TimeoutException as e:
             raise ProviderError("The app timed out.", retryable=True) from e
         except httpx.HTTPError as e:

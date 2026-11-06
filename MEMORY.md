@@ -64,20 +64,19 @@ See `docs/ARCHITECTURE.md` section 6. Short form: dataset versions never change;
 
 ## Current state — Phase 8 (EDD), 2026-11-06
 - Branch `main`, local only. Nothing pushed. Never push without the owner's word.
-- Done and committed: M1 app targets (`e69fa1b`), M2 agent evaluators (`1882fea`), M3 config + pytest plugin + plugins (see `git log`).
-- Tests: 909 pass. Ruff clean. Selftest 31 of 31. The plugin's `pytest11` entry point is registered in the venv (`pip install -e .`).
+- Done and committed: M1 app targets, M2 agent evaluators, M3 config + pytest plugin + plugins, M4 experiments + cost model + prompt files (see `git log`).
+- Tests: 961 pass. Ruff clean. Selftest 33 of 33. The plugin's `pytest11` entry point is registered in the venv (`pip install -e .`).
 - `PLAN.md` and `docs/LEARNING.md` were removed. The docs set is in `docs/`.
 
 ## Next steps
-1. M4: `edd/experiments.py`, `edd/costmodel.py`, gate rule `max_annual_cost`, prompt versions, migration 0006 if needed.
-2. M5: CI workflow and a reusable GitHub Action (written locally, not pushed).
-3. M6: `examples/support_agent/`, `make edd-demo`, `docs/EDD.md`, dashboard Experiments page.
-4. `/cso` scan of the whole codebase. Fix findings.
-5. Ask the owner about pushing.
+1. M5: CI workflow and a reusable GitHub Action (written locally, not pushed).
+2. M6: `examples/support_agent/`, `make edd-demo`, `docs/EDD.md`, dashboard Experiments page.
+3. `/cso` scan of the whole codebase. Fix findings.
+4. Ask the owner about pushing.
 
 ## Open questions for the owner
 - When to push, and to which branch or remote.
 - Whether to move old flat modules into packages (a bigger cleanup, risky, needs its own commit).
 
 ## Session log
-- 2026-11-06: Built M3. Removed PLAN.md (merged into docs) and LEARNING.md. Compared with Fareed's `ai-eval-system` (a notebook tutorial: receipt auditor, cost model, V0 to V1). Planned Phase 8. Engineering review accepted four changes (targets as providers, cache key salt, CLI-only python targets, pytest replay). Built M1 and M2. Switched to Sonnet 5.5 at medium effort. The owner asked for the five docs and this file, and for clean structure.
+- 2026-11-06: Built M4 (experiments, cost model reproducing the $380k/$100k example, prompt diff). Built M3. Removed PLAN.md (merged into docs) and LEARNING.md. Compared with Fareed's `ai-eval-system` (a notebook tutorial: receipt auditor, cost model, V0 to V1). Planned Phase 8. Engineering review accepted four changes (targets as providers, cache key salt, CLI-only python targets, pytest replay). Built M1 and M2. Switched to Sonnet 5.5 at medium effort. The owner asked for the five docs and this file, and for clean structure.

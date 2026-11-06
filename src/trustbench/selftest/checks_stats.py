@@ -3,6 +3,8 @@
 import math
 
 from ..calibration import auroc, brier_score, expected_calibration_error
+from ..edd.costmodel import CostModel, annual_cost, cost_report
+from ..rundata import Record
 from ..stats import (
     benjamini_hochberg, chi2_sf, fisher_exact_less, ks_two_sample, mcnemar_exact, paired_binary_ci, psi, wilson_interval,
 )
@@ -135,3 +137,36 @@ def chi2_table(ctx: Ctx):
     table = [(3.841, 1, 0.05), (5.991, 2, 0.05), (11.070, 5, 0.05), (18.307, 10, 0.05), (6.635, 1, 0.01), (9.210, 2, 0.01)]
     worst = max(abs(chi2_sf(x, df) - p) for x, df, p in table)
     return worst <= 5e-4, f"largest error {worst:.5f}", "six values from the standard table"
+
+
+def _cost_model(**kw) -> CostModel:
+    base = dict(volume_per_year=1_000_000, positive_rate=0.05, costs=dict(false_positive=2, false_negative=30, true_positive=2))
+    return CostModel(**{**base, **kw})
+
+
+@check("statistics", "Cost model matches hand calculations", "manual $380,000 and perfect $100,000 exactly, and 3 more hand-worked cases")
+def cost_hand_calculation(ctx: Ctx):
+    m = _cost_model()
+    small = _cost_model(volume_per_year=1000, positive_rate=0.5, costs=dict(false_positive=1, false_negative=10, true_positive=100, true_negative=1000))
+    cases = [(annual_cost(m, 0.02, 0.03, 0.20), 380_000), (annual_cost(m, 0.0, 0.0, 0.0), 100_000),
+             (annual_cost(small, 1, 0, 0), 500 * 100 + 500 * 1), (annual_cost(small, 0, 1, 0), 500 * 10 + 500 * 1000),
+             (annual_cost(small, 0, 0, 0.5), 500 * 100 + 500 * 1000 + 500)]
+    wrong = [f"{got:,.0f} not {want:,.0f}" for got, want in cases if abs(got - want) > 1e-6]
+    return not wrong, f"{len(cases) - len(wrong)} of {len(cases)} right", "; ".join(wrong)
+
+
+@check("statistics", "Cost interval covers the true yearly cost", "coverage 90% to 100% in each of 3 settings (the box of two intervals is conservative)")
+def cost_interval_coverage(ctx: Ctx):
+    rng, trials = ctx.rng("cost"), ctx.n(300)
+    m = _cost_model(processing_cost_per_item=0.01)
+    covers = []
+    for fn, fp, n_pos, n_neg in [(0.04, 0.03, 80, 320), (0.20, 0.10, 40, 160), (0.01, 0.01, 200, 800)]:
+        truth = annual_cost(m, fp, fn, 0.01)
+        hit = 0
+        for _ in range(trials):
+            recs = ([Record(case_id=f"p{i}", passed=rng.random() >= fn, metadata={"positive": True}) for i in range(n_pos)]
+                    + [Record(case_id=f"n{i}", passed=rng.random() >= fp, metadata={"positive": False}) for i in range(n_neg)])
+            lo, hi = cost_report(m, recs).annual_ci
+            hit += lo <= truth <= hi
+        covers.append(hit / trials)
+    return min(covers) >= 0.90, "coverage " + ", ".join(f"{c:.1%}" for c in covers), ""

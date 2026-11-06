@@ -4,7 +4,9 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+
+from .edd.costmodel import CostModel
 
 Score01 = Field(default=None, ge=0, le=1)
 
@@ -31,6 +33,14 @@ class ReleasePolicy(BaseModel):
     latency_p95_max_seconds: float | None = Field(default=None, gt=0)
     cost_per_success_max_usd: float | None = Field(default=None, gt=0)
     call_failure_rate_max: float | None = Score01
+    cost_model: CostModel | None = None          # What a mistake costs (see edd/costmodel.py).
+    annual_cost_max_usd: float | None = Field(default=None, gt=0)   # The cost of the system with its mistakes, per year.
+
+    @model_validator(mode="after")
+    def _cost_rule_needs_a_model(self):
+        if self.annual_cost_max_usd is not None and self.cost_model is None:
+            raise ValueError("annual_cost_max_usd needs a cost_model block.")
+        return self
 
 
 class PolicyError(ValueError):
@@ -93,4 +103,13 @@ release_policy:
   latency_p95_max_seconds: 5.0
   cost_per_success_max_usd: 0.05
   call_failure_rate_max: 0.02
+
+  # What the system costs per year, with its mistakes. Mark each case with metadata "positive": true or false.
+  # A failed positive case is a miss (false negative). A failed negative case is a false alarm.
+  # cost_model:
+  #   volume_per_year: 1000000
+  #   positive_rate: 0.05                  # share of real items that need action
+  #   costs: {false_negative: 30.0, false_positive: 2.0, true_positive: 2.0, true_negative: 0.0}
+  #   manual: {fp_rate: 0.02, fn_rate: 0.03, cost_per_item: 0.20}    # what you pay today
+  # annual_cost_max_usd: 150000
 """

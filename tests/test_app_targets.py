@@ -39,6 +39,7 @@ def instrumented(prompt):
         pass
     tool_call("lookup", {"id": prompt}, result="ok")
     return "answered"
+def wants_system(prompt, system=None): return f'{system}|{prompt}'
 async def interleaved(prompt):
     import asyncio
     tool_call("first", {"id": prompt})
@@ -82,6 +83,11 @@ def test_instrumented_code_is_recorded_without_returning_anything_special(sample
 
 def test_the_function_can_ask_for_the_full_case_input(sample_app):
     assert gen("sample_app:wants_input", input={"messages": [1]}).text == "{'messages': [1]}"
+
+
+def test_the_function_can_ask_for_the_system_prompt_of_the_run(sample_app):
+    assert gen("sample_app:wants_system", prompt="q", system="be brief").text == "be brief|q"
+    assert gen("sample_app:wants_system", prompt="q").text == "None|q"
 
 
 def test_the_version_label_is_ignored_when_loading_the_function(sample_app):
@@ -145,8 +151,8 @@ def test_http_target_sends_prompt_and_input_and_reads_a_structured_answer():
         seen.update(json.loads(request.read()))
         return httpx.Response(200, json={"output": "ok", "tool_calls": [{"name": "t"}], "spans": [{"kind": "tool", "name": "t"}]})
 
-    r = asyncio.run(http(handler).generate(REQ("https://app.test/ask@v1", prompt="hello", input={"a": 1})))
-    assert seen == {"prompt": "hello", "input": {"a": 1}}
+    r = asyncio.run(http(handler).generate(REQ("https://app.test/ask@v1", prompt="hello", input={"a": 1}, system="be brief")))
+    assert seen == {"prompt": "hello", "input": {"a": 1}, "system": "be brief"}
     assert r.text == "ok" and r.tool_calls == [{"name": "t"}] and r.model_id == "https://app.test/ask"
 
 

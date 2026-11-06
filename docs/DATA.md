@@ -1,7 +1,7 @@
 # TrustBench — Data
 
 What we store, in which shape, and why. Source of truth for tables: `src/trustbench/db.py`.
-Schema versions: `src/trustbench/migrations/versions/0001`–`0005`. Last updated: Phase 8, milestone 3.
+Schema versions: `src/trustbench/migrations/versions/0001`–`0006`. Last updated: Phase 8, milestone 4.
 
 ## 1. Files you write
 
@@ -40,11 +40,14 @@ Matchers for an argument value: a plain value, `{"approx", "tol"/"rel"}`, `{"reg
 Bad fields fail when the dataset loads.
 
 ### `trustbench.yaml`  (`edd/config.py`)
-`version`, `dataset`, `targets` (name → spec), `default_targets`, `judge`, `policy`, `baseline`, and `run` (`reps`, `concurrency`, `retries`, `timeout`, `budget`, `rpm`, `cache`).
+`version`, `dataset`, `targets` (name → spec), `default_targets`, `judge`, `policy`, `baseline`, and `run` (`reps`, `concurrency`, `retries`, `timeout`, `budget`, `rpm`, `cache`, `system_prompt_file`).
 Unknown keys are errors. Write one with `trustbench init`.
 
 ### `policy.yaml`  (`policy.py`)
-The release rules: `min_cases`, `confidence_bound`, `on_insufficient_evidence`, `min_effect`, `overall`, `dimensions`, `critical_failures_allowed`, `latency_p95_max_seconds`, `cost_per_success_max_usd`, `call_failure_rate_max`.
+The release rules: `min_cases`, `confidence_bound`, `on_insufficient_evidence`, `min_effect`, `overall`, `dimensions`, `critical_failures_allowed`, `latency_p95_max_seconds`, `cost_per_success_max_usd`, `call_failure_rate_max`, `annual_cost_max_usd` and its `cost_model` block.
+
+The cost model (`edd/costmodel.py`): `volume_per_year`, `positive_rate`, `costs` (`false_positive`, `false_negative`, `true_positive`, `true_negative`), `label_key` (default `positive`), `processing_cost_per_item`, `manual` (`fp_rate`, `fn_rate`, `cost_per_item`).
+Mark each test case with metadata `positive: true` or `false`. A failed positive case is a miss. A failed negative case is a false alarm.
 
 ## 2. App target records
 
@@ -74,6 +77,7 @@ workspaces ─┬─ api_keys
             │         │                  │                   └── human_annotations
             │         │                  └── model_configurations
             │         └── release_decisions ── baselines
+            ├─ experiments (run_id, parent_id → experiments)
             ├─ proposed_cases
             ├─ production_traces ── trace_spans, trace_evaluations
             ├─ audit_log
@@ -93,13 +97,16 @@ response_cache  (shared answer cache, keyed by a hash)
 | `human_annotations` | Human labels for judge validation | `annotator`, `dimension`, `label` |
 | `response_cache` | A stored answer for a request key | `key`, `text`, tokens, `latency_ms`, **`tool_calls`**, **`spans`** |
 | `baselines` | A name for a run | `name`, `run_id`, `model` |
+| `experiments` | A named variant with its run, parent and hypothesis. Never changed. | `name`, `run_id`, `model`, `parent_id`, `hypothesis` |
 | `release_decisions` | A saved gate decision | `policy_snapshot`, `status`, `allowed`, `checks` |
 | `proposed_cases` | A new test case waiting for review | `spec`, `source_run_id`, `status`, `expected_verified` |
 | `production_traces`, `trace_spans`, `trace_evaluations` | Production traffic (redacted) | `input_enc`, `output_enc`, `redactions`, `expires_at`, `feedback` |
 | `workspaces`, `api_keys`, `audit_log` | Tenants, keys (hashed, with role and expiry), audit | |
 | `jobs` | Background tasks | `kind`, `state`, `attempts`, `lease_expires_at` |
 
-Bold columns arrived in migration 0005.
+Bold columns arrived in migration 0005. The `experiments` table arrived in migration 0006.
+
+The system prompt of a run is stored in `evaluation_runs.config_snapshot.options.system_prompt` (the text, not only a hash).
 
 ## 4. The cache key
 

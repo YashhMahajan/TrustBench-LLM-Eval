@@ -1,6 +1,6 @@
 # TrustBench — Product Requirements
 
-Status: living document. Last updated with Phase 8, milestone 3 (done).
+Status: living document. Last updated with Phase 8, milestone 4 (done).
 Style: short sentences. One idea in each sentence.
 
 ## 1. Problem
@@ -79,9 +79,9 @@ Priority: P0 = must have. P1 = should have. P2 = later.
 | R11 | `trustbench.yaml` and `trustbench init`. `trustbench run` reads it. | P0 | Done (M3) |
 | R12 | A pytest plugin. Replay from the cache by default. Live calls only on request. A session budget. | P0 | Done (M3) |
 | R13 | Evaluator plugins through entry points. A broken plugin never stops TrustBench. | P1 | Done (M3) |
-| R14 | Experiments: name a variant, state a hypothesis, compare with a parent, per-slice change | P0 | Planned (M4) |
-| R15 | A business cost model with an interval. A gate rule on yearly cost. | P0 | Planned (M4) |
-| R16 | Prompt versions in the run snapshot. `compare` shows the diff. | P1 | Planned (M4) |
+| R14 | Experiments: name a variant, state a hypothesis, compare with a parent, per-slice change | P0 | Done (M4) |
+| R15 | A business cost model with an interval. A gate rule on yearly cost. An unknown cost is never zero (report: incomplete; gate: inconclusive). | P0 | Done (M4) |
+| R16 | Prompt versions in the run snapshot. `compare` shows the diff. | P1 | Done (M4) |
 | R17 | CI workflow for this repo and a reusable GitHub Action that comments on pull requests | P0 | Planned (M5) |
 
 ### 5.3 Showcase and onboarding (Phase 8)
@@ -94,7 +94,7 @@ Priority: P0 = must have. P1 = should have. P2 = later.
 ### 5.4 Platform (Phases 1–7, done)
 Statistical comparison and release gate. Judge validation and bias tests. Robustness and calibration.
 Failure analysis and priority. Production traces, redaction, drift, online evaluation. Multi-tenant keys.
-A dashboard. A self-test of 31 checks. See `README.md` for every command.
+A dashboard. A self-test of 33 checks. See `README.md` for every command.
 
 ## 6. Success measures
 

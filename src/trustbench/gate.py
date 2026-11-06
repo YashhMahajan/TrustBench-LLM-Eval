@@ -13,6 +13,7 @@ Weak evidence is never read as a pass.
 from dataclasses import asdict, dataclass, field
 
 from .comparison import compare_records
+from .edd.costmodel import cost_report
 from .operations import operations
 from .policy import ReleasePolicy
 from .rundata import RunData, case_outcomes
@@ -72,6 +73,23 @@ def _regression_check(rule: str, tol: float, delta) -> Check:
     if delta.ci[0] >= -tol:
         return Check(rule, "pass", required, observed)
     return Check(rule, "inconclusive", required, observed, "The interval crosses the allowed fall. More cases are needed.")
+
+
+def _annual_cost_check(policy: ReleasePolicy, records) -> Check:
+    """Yearly cost with mistakes. An unknown cost is inconclusive, never zero. The interval decides when it is wide."""
+    limit = policy.annual_cost_max_usd
+    required = f"at most ${limit:,.0f} a year"
+    rep = cost_report(policy.cost_model, records)
+    if rep.status != "ok":
+        return Check("annual_cost", "inconclusive", required, "unknown", rep.reason)
+    lo, hi = rep.annual_ci
+    observed = f"${rep.annual_cost:,.0f} a year (95% ${lo:,.0f} to ${hi:,.0f})"
+    if rep.annual_cost > limit:
+        return Check("annual_cost", "fail", required, observed)
+    if policy.confidence_bound and hi > limit:
+        return Check("annual_cost", "inconclusive", required, observed,
+                     "The estimate is under the limit but its interval is not. More cases would narrow it.")
+    return Check("annual_cost", "pass", required, observed)
 
 
 def _ceiling_check(rule: str, limit: float, values: list[float], fmt, stat, min_n: int) -> Check:
@@ -163,6 +181,8 @@ def evaluate_gate(policy: ReleasePolicy, candidate: RunData, model: str | None =
         lat = [r.latency_ms / 1000 for r in records if r.status == "done" and r.latency_ms is not None]
         checks.append(_ceiling_check("latency_p95", policy.latency_p95_max_seconds, lat, lambda v: f"{v:.2f} s",
                                      lambda xs: percentile(xs, 95), MIN_LATENCY_SAMPLES))
+    if policy.annual_cost_max_usd is not None:
+        checks.append(_annual_cost_check(policy, records))
     if policy.cost_per_success_max_usd is not None:
         c = ops.cost_per_success_usd
         required = f"at most ${policy.cost_per_success_max_usd:.4f}"

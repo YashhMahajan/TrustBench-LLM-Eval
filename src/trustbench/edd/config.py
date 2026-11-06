@@ -26,6 +26,7 @@ class RunSettings(BaseModel):
     budget: float | None = Field(default=None, gt=0)   # Stop starting calls after this many USD.
     rpm: float | None = Field(default=None, gt=0)      # Most calls to start in a minute for each provider.
     cache: bool = True
+    system_prompt_file: str | None = None            # A file with the system prompt. Its text is stored with the run.
 
 
 class EddConfig(BaseModel):
@@ -124,4 +125,5 @@ run:
   # budget: 5.0    # Stop starting calls after this many USD.
   # rpm: 60        # Most calls to start in one minute, for each provider.
   cache: true      # Reuse stored answers. App targets are cached by version label or git commit.
+  # system_prompt_file: prompts/support_v1.txt   # Stored with each run, so `experiment compare` can show the prompt diff.
 """

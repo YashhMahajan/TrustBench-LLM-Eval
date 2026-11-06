@@ -1,7 +1,7 @@
 # TrustBench — Architecture
 
 This is the map of the code. Read it first. Then open the file you need.
-Last updated: Phase 8, milestone 3 (done).
+Last updated: Phase 8, milestone 4 (done).
 
 ## 1. One picture
 
@@ -52,10 +52,10 @@ Packages first. Then the flat modules in `src/trustbench/`, grouped by job.
 |---|---|
 | `providers/` | `base.py` (interface, prices), `http.py` (Anthropic, OpenAI-compatible), `mock.py`, `app.py` (python:/http: targets), `recorder.py` (tool calls and spans) |
 | `agents/` | Evaluators for agents: `eval_tool_call.py`, `eval_trajectory.py`, `eval_task_success.py`, `eval_rag_judged.py`; `matchers.py` (expected values); `schema.py` (load-time checks) |
-| `edd/` | EDD workflow: `config.py` (trustbench.yaml), `plugins.py` (evaluator plugins), `pytest_plugin.py` (evaluations in pytest). Next: experiments, cost model |
-| `selftest/` | 31 checks that prove TrustBench measures correctly: `checks_stats.py`, `checks_eval.py`, `checks_agents.py`, `checks_system.py` |
+| `edd/` | EDD workflow: `config.py` (trustbench.yaml), `plugins.py` (evaluator plugins), `pytest_plugin.py` (evaluations in pytest), `experiments.py` (variants, hypotheses, verdicts), `costmodel.py` (dollars per year with an interval) |
+| `selftest/` | 33 checks that prove TrustBench measures correctly: `checks_stats.py`, `checks_eval.py`, `checks_agents.py`, `checks_system.py` |
 | `suites/` | Ten built-in datasets (`smoke`, `factual`, `grounded`, `hallucination`, `injection`, `safety`, `abstention`, `calibration`, `structured_output`, `instruction_following`) |
-| `migrations/` | Alembic versions 0001–0005 |
+| `migrations/` | Alembic versions 0001–0006 |
 | `dashboard/` (repo root) | Next.js app. Reads the API. |
 
 ### Flat modules by job
@@ -65,14 +65,14 @@ Packages first. Then the flat modules in `src/trustbench/`, grouped by job.
 | Score (rules) | `evaluators.py` (registry), `eval_reference.py`, `eval_numeric.py`, `eval_schema.py`, `eval_calibration.py`, `eval_injection.py`, `eval_grounded.py`, `eval_judge.py` |
 | Score (judge) | `judge.py`, `judge_validation.py`, `judge_bias.py`, `agreement.py`, `pairwise.py`, `claims.py`, `verify.py`, `hallucination.py`, `annotations.py` |
 | Statistics | `stats.py`, `scorecard.py`, `comparison.py`, `slices.py`, `calibration.py`, `operations.py`, `frontier.py` |
-| Decide | `policy.py`, `gate.py`, `baselines.py` |
+| Decide | `policy.py`, `gate.py`, `baselines.py`, `edd/costmodel.py`, `edd/experiments.py` |
 | Diagnose | `failures.py`, `clustering.py`, `rag.py`, `priority.py`, `failure_report.py` |
 | Harden | `transforms.py`, `paraphrase.py`, `robustness.py`, `adversary.py`, `quality.py` |
 | Close the loop | `proposals.py`, `production_tests.py` |
 | Production | `sdk.py`, `traces.py`, `online.py`, `drift.py`, `monitor.py`, `jobs.py`, `handlers.py`, `dataprotect.py` |
 | Server and access | `api.py`, `api_data.py`, `tenancy.py`, `web_security.py`, `ratelimit.py`, `audit.py`, `crypto.py`, `redact.py` |
 | Storage | `db.py`, `migrate.py`, `bulk.py` |
-| CLI | `cli.py`, `cli_stats.py`, `cli_server.py`, `cli_db.py`, `cli_selftest.py`, `cli_edd.py` (init, plugins), `cli_common.py`, `demo.py` |
+| CLI | `cli.py`, `cli_stats.py`, `cli_server.py`, `cli_db.py`, `cli_selftest.py`, `cli_edd.py` (init, plugins, cost, experiment), `cli_common.py`, `demo.py` |
 
 The flat root is large (about 70 modules). The rule for new code: **put it in a package, not in the root.**
 Moving old modules into packages is a possible later cleanup. It needs its own commit and a full test run.

@@ -44,14 +44,15 @@ Later hardening: batched writes, answer cache, resume, rate limit, composite ind
 - [x] 66 new tests (config, CLI, plugins, pytester-based plugin tests), mutation-checked
 - [x] Commit (local only)
 
-## M4 — Experiments, cost model, prompt versions  [ ]
-- [ ] `edd/experiments.py`: variant name, hypothesis, parent run, `trustbench experiment compare`
-- [ ] `edd/costmodel.py`: confusion-cost matrix, volume, $/year with a bootstrap interval, unknown price → incomplete
-- [ ] Gate rule `max_annual_cost` in `policy.py` and `gate.py`
-- [ ] Prompt files hashed into the run snapshot. `compare` shows the diff.
-- [ ] Migration 0006 if a column is needed
-- [ ] Selftest check for the cost interval (with a sabotage test). Known example: $380,000 manual and $100,000 perfect.
-- [ ] Commit
+## M4 — Experiments, cost model, prompt versions  [x]
+- [x] `edd/experiments.py`: `experiment record / list / compare`. Verdict: supported, refuted, mixed (gain hides a worse slice), no_effect, cannot_tell.
+- [x] `edd/costmodel.py` + `trustbench cost`: confusion-cost matrix, volume, $/year with an interval, manual and perfect baselines. Reproduces the $380,000 / $100,000 reference example.
+- [x] Policy: `cost_model` block and `annual_cost_max_usd`. Gate rule `annual_cost`: fail over the limit; inconclusive when the interval straddles it or the cost is unknown.
+- [x] Prompts: `--system-prompt-file` / `run.system_prompt_file`. The text is stored in the run snapshot. `experiment compare` shows the diff. Python and HTTP targets can receive `system`.
+- [x] Migration 0006 (`experiments`)
+- [x] Two selftest checks (hand calculation, interval coverage) with sabotage tests. 33 checks in total.
+- [x] 51 new tests, mutation-checked
+- [x] Commit (local only)
 
 ## M5 — CI/CD  [ ]
 - [ ] `.github/workflows/ci.yml`: ruff, pytest, selftest, docker build, `pnpm build`

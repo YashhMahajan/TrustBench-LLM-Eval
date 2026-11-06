@@ -43,6 +43,7 @@ def run(
     name: str = typer.Option(None, help="A label for the run"),
     judge: str = typer.Option(None, help="provider:model that grades open answers"),
     rpm: float = typer.Option(None, help="Most calls to start in one minute for each provider"),
+    system_prompt_file: Path = typer.Option(None, "--system-prompt-file", help="A file with the system prompt. Its text is stored with the run."),
     no_cache: bool = typer.Option(False, "--no-cache", help="Ask the model again, even when the answer is stored"),
 ):
     """Run a dataset against your models or apps. Reads trustbench.yaml when it exists. Flags win over the file."""
@@ -70,6 +71,10 @@ def run(
     reps, concurrency = reps or settings.reps, concurrency or settings.concurrency
     retries = settings.retries if retries is None else retries
     timeout, budget, rpm = timeout or settings.timeout, budget or settings.budget, rpm or settings.rpm
+    prompt_path = system_prompt_file or (Path(settings.system_prompt_file) if settings.system_prompt_file else None)
+    if prompt_path is not None and not prompt_path.is_file():
+        console.print(f"[red]System prompt file not found: {prompt_path}[/red]")
+        raise typer.Exit(1)
     if not specs:
         console.print("[red]No model found.[/red] Set ANTHROPIC_API_KEY, OPENAI_API_KEY or GEMINI_API_KEY, "
                       "or use --model mock:smoke to try it without a key.")
@@ -99,7 +104,8 @@ def run(
             run_id = run_eval(factory, version.id, specs,
                               RunOptions(repetitions=reps, concurrency=concurrency, retries=retries,
                                          timeout=timeout, budget_usd=budget, name=name, judge=judge,
-                                         rpm=rpm, cache=settings.cache and not no_cache),
+                                         rpm=rpm, cache=settings.cache and not no_cache,
+                                         system_prompt=prompt_path.read_text() if prompt_path else None),
                               workspace_id=workspace_id, progress=update)
     except ValueError as e:
         console.print(f"[red]{e}[/red]")

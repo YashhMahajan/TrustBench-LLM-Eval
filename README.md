@@ -16,6 +16,12 @@ No key? Try the demo: `trustbench run --model mock:smoke`
 | Command | Action |
 |---|---|
 | `trustbench run` | Run a dataset against your models. Useful flags: `--rpm N` (rate limit), `--budget USD`, `--no-cache`, `--reps N` |
+| `trustbench init` | Write a commented `trustbench.yaml`. Then `trustbench run` needs no flags. |
+| `trustbench run --model python:pkg.mod:fn@v1` | Test your own Python function (or `http:URL@v1` for a service). `@v1` is your version label. |
+| `trustbench run --target NAME --system-prompt-file FILE` | Run a target from `trustbench.yaml`, with a system prompt file stored in the run |
+| `trustbench cost RUN_ID` | Yearly cost of the system with its mistakes, with an interval, against the manual process and a perfect system |
+| `trustbench experiment record / list / compare` | Name a run as a variant with a parent and a hypothesis. `compare` says if the evidence supports it, and shows the prompt diff. |
+| `trustbench plugins` | List evaluator plugins from other packages |
 | `trustbench results RUN_ID` | Show the result of each case |
 | `trustbench show RUN_ID CASE_ID` | Explain one case: answer, scores, reasons, claims |
 | `trustbench rescore RUN_ID` | Score stored outputs again. No model calls. |

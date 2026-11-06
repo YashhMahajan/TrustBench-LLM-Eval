@@ -30,7 +30,9 @@ Status: Open, Planned (has a task in `docs/TASKS.md`), Accepted (a choice we mad
 | I-27 | The pytest plugin stores answers in `.trustbench/pytest.db` (SQLite). Two pytest processes at once (for example `pytest -n`) can lock it. | Low | Open | Use `--trustbench-db` with Postgres, or run evaluation tests in one process. |
 | I-18 | A static price table. No spend history per workspace. No budget alerts. | Low | Open | An unknown price is never counted as zero. |
 | I-26 | Judge answers are not cached, so a judge-based test needs the judge's API key even in pytest replay mode | Medium | Open | Use rule-based evaluators (`tool_call`, `trajectory`, `task_success`, `exact_match`) for free replay. Caching judge calls is a possible later task. |
-| I-19 | Cost for HTTP and Python targets is unknown unless the app reports tokens | Medium | Open | The cost model (M4) must handle "unknown" as `incomplete`, not zero. |
+| I-19 | Cost for HTTP and Python targets is unknown unless the app reports tokens | Medium | Accepted | The cost model reports `incomplete` and the gate says `inconclusive`. Set `processing_cost_per_item` to give it a value. |
+| I-28 | The cost interval is the box of two 95% intervals, so it covers at least 90% jointly (the selftest measures about 99%). It is wider than needed. | Low | Accepted | Conservative on purpose. |
+| I-29 | The cost model needs a `positive` label on each case and a real-world `positive_rate` from you. A wrong rate gives a wrong dollar figure. | Medium | Accepted | The report shows the error rates with their intervals, so you can check the inputs. |
 
 ## Security and operations
 

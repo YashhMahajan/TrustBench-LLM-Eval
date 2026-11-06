@@ -309,3 +309,15 @@ def test_a_cache_key_that_ignores_the_code_version_is_noticed(monkeypatch):
     from trustbench.selftest import checks_agents
     monkeypatch.setattr(checks_agents, "code_fingerprint", lambda version: "same")
     assert not by_name(run_selftest(quick=True))["The answer cache key follows the code version"].passed
+
+
+def test_a_cost_formula_that_is_wrong_is_noticed(monkeypatch):
+    from trustbench.selftest import checks_stats
+    monkeypatch.setattr(checks_stats, "annual_cost", lambda m, fp, fn, proc: 0.0)
+    assert not by_name(run_selftest(quick=True))["Cost model matches hand calculations"].passed
+
+
+def test_a_cost_interval_that_is_too_narrow_is_noticed(monkeypatch):
+    from trustbench.edd import costmodel
+    monkeypatch.setattr(costmodel, "wilson_interval", lambda k, n, z=1.96: (k / n - 0.0005, k / n + 0.0005))
+    assert not by_name(run_selftest(quick=True))["Cost interval covers the true yearly cost"].passed
