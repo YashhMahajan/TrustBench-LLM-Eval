@@ -21,7 +21,7 @@ def tracked(*patterns: str) -> list[Path]:
 
 
 def test_the_documents_follow_the_writing_rules():
-    problems = [p for f in tracked("README.md", "MEMORY.md", "docs/*.md", "examples/*/README.md") for p in wc.check_markdown(f)]
+    problems = [p for f in tracked("*.md", ":!tests/golden") for p in wc.check_markdown(f)]
     assert not problems, "\n" + "\n".join(str(p) for p in problems[:15])
 
 

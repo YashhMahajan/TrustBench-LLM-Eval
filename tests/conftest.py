@@ -34,3 +34,11 @@ def _app_targets_off():
     allow_app_targets(False)
     yield
     allow_app_targets(False)
+
+
+@pytest.fixture(autouse=True)
+def _plain_terminal_output(monkeypatch):
+    """GitHub Actions turns on color. Color codes split words in the help text and break checks on the output."""
+    monkeypatch.setenv("NO_COLOR", "1")
+    monkeypatch.setenv("TERM", "dumb")
+    monkeypatch.delenv("FORCE_COLOR", raising=False)

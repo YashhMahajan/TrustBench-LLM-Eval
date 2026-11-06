@@ -14,7 +14,7 @@ lint:            ## Check the code
 	ruff check src tests examples scripts
 
 writing:         ## Check the writing rules in docs, comments and help text
-	python scripts/writing_check.py README.md MEMORY.md docs/*.md examples/support_agent/README.md $$(git ls-files '*.py')
+	python scripts/writing_check.py $$(git ls-files '*.md' '*.py' ':!tests/golden')
 
 selftest:        ## Check that TrustBench measures correctly
 	trustbench selftest

@@ -1,9 +1,19 @@
 [project]
 name = "trustbench"
 version = "0.1.0"
-description = "Evaluate LLMs. Set one API key and run."
+description = "Evaluate LLMs and LLM apps with statistics you can defend, a release gate, and a loop from production back to tests."
 readme = "README.md"
 license = { text = "MIT" }
+authors = [{ name = "Yashh Mahajan" }]
+keywords = ["llm", "evaluation", "ai-agents", "rag", "testing", "eval-driven-development", "ci"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Testing",
+]
 requires-python = ">=3.11"
 dependencies = [
   "sqlalchemy>=2.0",
@@ -23,6 +33,12 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
 redis = ["redis>=5"]
+
+[project.urls]
+Homepage = "https://github.com/YashhMahajan/TrustBench-LLM-Eval"
+Documentation = "https://github.com/YashhMahajan/TrustBench-LLM-Eval/blob/main/docs/EDD.md"
+Issues = "https://github.com/YashhMahajan/TrustBench-LLM-Eval/issues"
+Changelog = "https://github.com/YashhMahajan/TrustBench-LLM-Eval/blob/main/CHANGELOG.md"
 
 [project.scripts]
 trustbench = "trustbench.cli:app"

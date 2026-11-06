@@ -88,13 +88,13 @@ It ships to engineers for their own workflows. It is also the owner's showcase p
 - The `/cso` security scan is done. We fixed all 6 findings (see `docs/ISSUES.md`, "Security scan").
 - We rewrote all project text to follow the writing rules and added `scripts/writing_check.py` and a test for it.
 - The owner approved the push after the rewrite. Check `git status` and `git log origin/main..HEAD` for the real state.
-- We never ran the workflow and the Action on GitHub (I-30). The Docker daemon did not run, so we did not verify the image build (I-04).
+- The CI workflow runs on GitHub. The reusable Action has not run on a real pull request yet (I-30). Do not start Docker on this machine (the owner said no). CI builds the image.
 
 ## Next steps
 
-1. Run the workflow on GitHub and fix what it shows.
+1. Open a test pull request that uses the Action, and fix what it shows (I-30).
 2. Turn on "Require review from Code Owners" in the branch protection of main (I-40).
-3. Ask the owner to start Docker Desktop. Then verify the image and the Postgres migrations (I-02, I-04).
+3. Verify the Postgres migrations in CI with a Postgres service container (I-02). Do not use Docker locally.
 4. Run one live evaluation against a real model and record it in `docs/PERFORMANCE.md` (I-01).
 
 ## Open questions for the owner

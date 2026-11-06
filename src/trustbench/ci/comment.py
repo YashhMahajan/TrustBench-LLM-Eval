@@ -91,8 +91,8 @@ def build_comment(candidate: RunData, model: str | None, *, baseline: RunData | 
                 row += (f" {_pct(d.baseline)} | {d.diff * 100:+.1f} pts | {VERDICT[d.verdict]} |" if d and d.diff is not None else " - | - | - |")
             out.append(row)
         if cmp:
-            out.append(f"\nCompared with run `{code(baseline.run_id)}` on {cmp.paired_cases} shared cases ({cmp.overall.method}; "
-                       f"a change counts past {min_effect:.1%}).")
+            out.append(f"\nCompared with run `{code(baseline.run_id)}` on {cmp.paired_cases} shared cases ({cmp.overall.method} test). "
+                       f"A change counts past {min_effect:.1%}.")
         if regressed:
             out += ["", "### Slices that got worse", "", "| Slice | Cases | Baseline | Now |", "|---|---|---|---|"]
             out += [f"| {safe(s.dimension)} = {safe(s.value)} | {s.n} | {_pct(s.baseline)} | {_pct(s.candidate)} |" for s in regressed]

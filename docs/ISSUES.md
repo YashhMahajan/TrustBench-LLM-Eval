@@ -11,8 +11,8 @@ Status: Open, Planned (has a task in `docs/TASKS.md`), Accepted (a choice we mad
 | I-01 | No call to a live model provider was ever made | High | Open | All tests use the mock provider and `httpx.MockTransport`. Run one small real run and record it in `docs/PERFORMANCE.md` before release. |
 | I-02 | Not run against a real PostgreSQL server | High | Open | Tests check Postgres as generated SQL only. Tests use SQLite. Migration 0005 uses `batch_alter_table`. Check it on Postgres. |
 | I-03 | Not run against a real Redis server | Medium | Open | Tests use `tests/fake_redis.py` for the job queue. |
-| I-04 | We never built the Docker images here | Medium | Open | The Docker daemon did not run on the dev machine. Starting it is the owner's decision. CI builds the image and checks its health (M5), but CI never ran. We ran the server outside Docker on SQLite. The health check returned 200. |
-| I-05 | The dashboard has no tests | Low | Open | The typecheck and the production build pass. We ran them locally with pnpm 11 and Node 24. CI also runs them. |
+| I-04 | We never built the Docker image on the dev machine | Low | Fixed | The first CI run built the image, started it and got a healthy answer from `/v1/health`. The image contents have no review yet. |
+| I-05 | The dashboard has no tests | Low | Open | The typecheck and the production build pass. We ran them locally with pnpm 11 and Node 24. CI runs them too, and they pass there. |
 | I-06 | Tests run distributed workers with one process and a simulated crash | Low | Accepted | |
 
 ## Product gaps
@@ -27,7 +27,7 @@ Status: Open, Planned (has a task in `docs/TASKS.md`), Accepted (a choice we mad
 | I-15 | The dashboard has no Evaluators page (judge validation) and no Reports page | Low | Open | The report export exists as a file and an API route. |
 | I-16 | RAG checks read documents from a `retrieval` span. A retriever that records nothing needs `input.context`. | Low | Accepted | The error message says what to do. |
 | I-17 | Datasets are not split into dev, test and holdout. No contamination check. | Medium | Open | |
-| I-30 | We never ran the workflow and the Action on GitHub | High | Open | Tests cover everything that we can check locally. This includes the YAML structure, pinned SHAs, script injection, option names, the comment, and the poster against a simulated API. We also ran the install command in a fresh virtualenv. The first real run will teach us more. |
+| I-30 | The Action itself has not run on a pull request yet | Medium | Open | The CI workflow ran on GitHub: lint, tests, self-test, Docker image, dashboard build and the example demo. The reusable Action needs a real pull request to prove the comment and the gate. |
 | I-31 | A baseline from `main` needs a database or a `baseline-target` in the same checkout | Medium | Accepted | `ci check --baseline-target` runs both targets in one job on the same cases. Comparing a pull request with the code of `main` needs a baseline stored between jobs (the Action caches answers, not named baselines). |
 | I-32 | `requires-python` says 3.11 or newer, but we test only 3.12 | Low | Open | CI uses 3.12. |
 | I-33 | A cached answer database holds model outputs. Anyone who can read the repository's Actions caches can read them. | Medium | Accepted | Do not put secrets in test data. Set the Action input `cache: "false"` to turn it off. |

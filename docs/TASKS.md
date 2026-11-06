@@ -26,6 +26,14 @@ Later hardening: batched writes, answer cache, resume, rate limit, composite ind
 - [x] `tests/test_writing_rules.py` runs it on every tracked file. So CI blocks text that breaks a rule. `make writing` runs it by hand.
 - [ ] Not covered: the choice of words and the meaning of the text.
 
+## Repository and CI  [x]
+- [x] First CI run on GitHub: the dashboard build, the Docker image and health check, and the demo passed. One test failed because color codes in the help text split option names. Tests now turn color off.
+- [x] Actions updated to current releases, still pinned to commit SHAs.
+- [x] Project files: `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md`, issue and pull request templates, `dependabot.yml`, badges, package metadata.
+- [x] Repository description, topics and dependency security alerts.
+- [x] Removed a tracked `.coverage` file.
+- [ ] Open for the owner: make the repository public when ready, and turn on branch protection (I-40).
+
 ## M1 — App targets  [x]  (commit `e69fa1b`)
 - [x] `providers/app.py`: `PythonAppProvider`, `HttpAppProvider`, `@label` versions, git fingerprint
 - [x] `providers/recorder.py`: `span()`, `tool_call()`, isolated per case

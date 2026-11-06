@@ -21,7 +21,7 @@ Run `cand0001` · `python:app:fn@v1` · dataset `support` · 60 scored cases · 
 | refund | 95.0% (76.4% to 99.1%), n=20 | 90.0% | +5.0 pts | cannot tell |
 | shipping | 60.0% (38.7% to 78.1%), n=20 | 95.0% | -35.0 pts | worse |
 
-Compared with run `base0001` on 60 shared cases (mcnemar; a change counts past 1.0%).
+Compared with run `base0001` on 60 shared cases (mcnemar test). A change counts past 1.0%.
 
 ### Slices that got worse
 

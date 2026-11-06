@@ -1,6 +1,12 @@
 # TrustBench
 
-TrustBench tests LLMs. You set an API key. TrustBench does the rest.
+[![CI](https://github.com/YashhMahajan/TrustBench-LLM-Eval/actions/workflows/ci.yml/badge.svg)](https://github.com/YashhMahajan/TrustBench-LLM-Eval/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)
+
+TrustBench tests LLMs and LLM apps. You set an API key, or you point it at your own function or service. TrustBench does the rest.
+
+**Quick links:** [Start](#start) · [Eval-Driven Development in 5 minutes](#eval-driven-development-in-5-minutes) · [Guide](docs/EDD.md) · [Architecture](docs/ARCHITECTURE.md) · [Known issues](docs/ISSUES.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
 ## Start
 
