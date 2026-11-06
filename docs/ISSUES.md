@@ -31,6 +31,8 @@ Status: Open, Planned (has a task in `docs/TASKS.md`), Accepted (a choice we mad
 | I-31 | A baseline from `main` needs a database or a `baseline-target` in the same checkout | Medium | Accepted | `ci check --baseline-target` runs both targets in one job on the same cases. Comparing a pull request with the code of `main` needs a baseline stored between jobs (the Action caches answers, not named baselines). |
 | I-32 | Python 3.11 is declared (`requires-python >=3.11`) but only 3.12 is tested | Low | Open | CI uses 3.12. |
 | I-33 | A cached answer database holds model outputs. Anyone who can read the repository's Actions caches can read them. | Medium | Accepted | Do not put secrets in test data. Set the Action input `cache: "false"` to turn it off. |
+| I-34 | `proposals export DATASET` uses the same text as the name of the proposals group and as the path of the base dataset | Low | Open | Refer to your dataset by its file path everywhere (as the demo does) so the base cases are included. |
+| I-35 | The example agent uses a scripted stand-in for the model, not a real model | Low | Accepted | By design: it is deterministic and needs no key. A live run against a real model is still I-01. |
 | I-27 | The pytest plugin stores answers in `.trustbench/pytest.db` (SQLite). Two pytest processes at once (for example `pytest -n`) can lock it. | Low | Open | Use `--trustbench-db` with Postgres, or run evaluation tests in one process. |
 | I-18 | A static price table. No spend history per workspace. No budget alerts. | Low | Open | An unknown price is never counted as zero. |
 | I-26 | Judge answers are not cached, so a judge-based test needs the judge's API key even in pytest replay mode | Medium | Open | Use rule-based evaluators (`tool_call`, `trajectory`, `task_success`, `exact_match`) for free replay. Caching judge calls is a possible later task. |
@@ -60,5 +62,8 @@ Status: Open, Planned (has a task in `docs/TASKS.md`), Accepted (a choice we mad
 
 | What | How it was found |
 |---|---|
+| Python targets in your project folder were not found by the real `trustbench` command | A test that runs the real script (the earlier tests used `syspath_prepend`, which hid it) |
+| The CI comment double-escaped characters (`&#95;` became `&&#35;95;`) | Reading the snapshot of the comment |
+| A pytest plugin test was flaky because Python reused a stale `.pyc` of a file rewritten in the same second | A failure in a full run that passed alone |
 | The first isolation test for the span recorder passed even with a shared global recorder | A deliberate break (mutation) survived. The test app now yields mid-call. |
 | The default relevance threshold of 0.67 rejected a score of 2 of 3 | A test written for the boundary failed. The threshold is now `min_score: 2`. |

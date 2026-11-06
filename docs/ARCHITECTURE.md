@@ -1,7 +1,7 @@
 # TrustBench — Architecture
 
 This is the map of the code. Read it first. Then open the file you need.
-Last updated: Phase 8, milestone 5 (done).
+Last updated: Phase 8, milestone 6.
 
 ## 1. One picture
 
@@ -58,6 +58,7 @@ Packages first. Then the flat modules in `src/trustbench/`, grouped by job.
 | `suites/` | Ten built-in datasets (`smoke`, `factual`, `grounded`, `hallucination`, `injection`, `safety`, `abstention`, `calibration`, `structured_output`, `instruction_following`) |
 | `migrations/` | Alembic versions 0001–0006 |
 | `dashboard/` (repo root) | Next.js app. Reads the API. |
+| `examples/support_agent/` (repo root) | The flagship example: a tool-using agent in four versions, its dataset and policy, and `demo.py` (the EDD story). Run with `make edd-demo`. |
 
 ### Flat modules by job
 | Job | Modules |

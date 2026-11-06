@@ -6,6 +6,7 @@
 The part after `@` is your version label. It goes into the answer cache key, so a new version never
 replays old answers. Without a label we use the git commit, and we turn the cache off for a dirty tree.
 
+The folder you run the command in is importable, so `python:myapp.agent:answer` finds ./myapp/agent.py.
 A python target receives the prompt. It may return text, or a dict {"output", "tool_calls", "spans"}.
 If its signature has a `case_input` parameter, it also receives the full case input (for example messages).
 If it has a `system` parameter, it receives the system prompt of the run (`--system-prompt-file`), so you can test prompt changes.
@@ -15,7 +16,9 @@ import functools
 import hashlib
 import importlib
 import inspect
+import os
 import subprocess
+import sys
 import time
 
 import httpx
@@ -76,6 +79,9 @@ class PythonAppProvider(Provider):
 
     def __init__(self) -> None:
         self._fns: dict[str, object] = {}
+        cwd = os.getcwd()
+        if cwd not in sys.path:             # The `trustbench` script does not do this. Your project folder must be importable.
+            sys.path.insert(0, cwd)
 
     def cache_salt(self, model: str) -> str | None:
         return code_fingerprint(split_version(model)[1])

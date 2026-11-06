@@ -1,0 +1,16 @@
+# Run from this folder:  trustbench run --target v1   (or: make edd-demo, from the repository root)
+version: 1
+dataset: datasets/support.jsonl
+
+targets:
+  v0: python:support_agent.v0:answer@v0     # answers from memory
+  v1: python:support_agent.v1:answer@v1     # uses its tools correctly, no guard
+  v2: python:support_agent.v2:answer@v2     # knowledge base + human escalation
+  v3: python:support_agent.v3:answer@v3     # understands "arrived damaged"
+default_targets: [v2]
+
+policy: policy.yaml
+
+run:
+  reps: 1
+  concurrency: 4

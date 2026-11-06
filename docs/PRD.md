@@ -87,8 +87,8 @@ Priority: P0 = must have. P1 = should have. P2 = later.
 ### 5.3 Showcase and onboarding (Phase 8)
 | ID | Requirement | Priority | Status |
 |---|---|---|---|
-| R18 | A support-agent example that runs with no API keys (`make edd-demo`) and tells the EDD story | P0 | Planned (M6) |
-| R19 | `docs/EDD.md` and a README section "EDD in 5 minutes" | P0 | Planned (M6) |
+| R18 | A support-agent example that runs with no API keys (`make edd-demo`) and tells the EDD story | P0 | Done (M6) |
+| R19 | `docs/EDD.md` and a README section "EDD in 5 minutes" | P0 | Done (M6) |
 | R20 | Dashboard: an Experiments page and a trajectory view | P1 | Planned (M6) |
 
 ### 5.4 Platform (Phases 1–7, done)

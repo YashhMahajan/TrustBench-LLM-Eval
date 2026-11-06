@@ -67,7 +67,7 @@ def test_the_workflow_never_runs_pull_request_code_with_write_access():
 
 def test_the_workflow_runs_the_checks_we_say_we_run():
     cmds = " ".join(s.get("run", "") for s in steps("workflow"))
-    for needle in ["ruff check src tests", "pytest", "trustbench selftest", "docker build", "docker compose config",
+    for needle in ["ruff check src tests", "pytest", "trustbench selftest", "make edd-demo", "docker build", "docker compose config",
                    "pnpm install --frozen-lockfile", "pnpm typecheck", "pnpm build", "-c requirements.lock"]:
         assert needle in cmds, needle
 

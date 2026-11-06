@@ -60,6 +60,27 @@ No key? Try the demo: `trustbench run --model mock:smoke`
 | `trustbench db status / check / upgrade / sql` | Database versions |
 | `trustbench key create --expires-days N` | A key that stops working after N days |
 
+## Eval-Driven Development in 5 minutes
+
+TrustBench tests **your own app**, not only a model. See the whole loop on a support agent, with no API key:
+
+```bash
+pip install -e .
+make edd-demo          # v0 is bad → v1 is better but blocked by the gate → v2 ships → production finds a gap → v3
+```
+
+Then try it on your code:
+
+```bash
+trustbench init                                        # writes trustbench.yaml
+trustbench run --model python:myapp.agent:answer@v1    # your function. @v1 is your version label.
+trustbench failures RUN_ID                             # how did it fail?
+trustbench experiment record v1 RUN_ID --hypothesis "Schema tools fix bad arguments"
+```
+
+It also runs in pytest (`trustbench` fixture, replays stored answers by default) and in CI (a reusable GitHub Action that comments on pull requests).
+The full guide is in [docs/EDD.md](docs/EDD.md). The example is in [examples/support_agent](examples/support_agent).
+
 ## Decide if a model is ready
 
 1. Run your dataset, then name the run that works today as the baseline:
@@ -273,8 +294,8 @@ A 20,000-case run is saved in 2.7 seconds (it was 17). A list of runs answers in
 judge validation against human labels, robustness tests, calibration, failure analysis by stage, a loop from production to tests, privacy by default (measurements only, redaction, encryption),
 multi-tenant keys, and a self-test that proves the numbers and is itself tested by breaking the code.
 
-**Narrower than other tools:** no multi-turn or agent tests, fewer public benchmarks than lm-evaluation-harness or Inspect AI, no red-team prompt generator, no declarative YAML test file like Promptfoo,
-and no community or plugin ecosystem.
+**Narrower than other tools:** fewer public benchmarks than lm-evaluation-harness or Inspect AI, no red-team prompt generator, and no community yet
+(there is a plugin entry point for evaluators, and a YAML config for runs, but test cases are still JSONL, not a YAML test file like Promptfoo).
 
-**Not verified here:** a call to a live provider (no key was used), a real PostgreSQL server, a real Redis server, the Docker images (the files are checked, not built), and the changed dashboard files
-(the cookie flag, forwarded address and security headers were written but the dashboard was not rebuilt). Run `trustbench selftest` and `pytest` first on your machine, then try one small real run.
+**Not verified here:** a call to a live provider (no key was used), a real PostgreSQL server, a real Redis server, the Docker images (the files are checked, not built), and the GitHub workflow and Action (never run on GitHub).
+The dashboard typechecks and builds. See [docs/ISSUES.md](docs/ISSUES.md). Run `trustbench selftest` and `pytest` first on your machine, then try one small real run.

@@ -326,3 +326,16 @@ def test_the_run_command_can_test_a_python_function(tmp_path, sample_app, monkey
     r = CliRunner(env={"COLUMNS": "200"}).invoke(app, ["run", "--dataset", str(data), "--model", "python:sample_app:plain@v1"])
     assert r.exit_code == 0, r.output
     assert "100%" in r.output
+
+
+def test_a_target_in_the_current_folder_is_found_by_the_real_command(tmp_path):
+    """The `trustbench` script does not put the current folder on the import path by itself. Users expect their project to be found."""
+    import subprocess
+    import sys
+    script = pathlib.Path(sys.executable).parent / "trustbench"
+    (tmp_path / "local_app.py").write_text("def answer(prompt): return 'Paris'\n")
+    (tmp_path / "d.jsonl").write_text(json.dumps({"id": "a", "input": "Capital of France?", "expected": {"answer": "Paris"}}) + "\n")
+    env = {**__import__("os").environ, "TRUSTBENCH_DATABASE_URL": f"sqlite:///{tmp_path}/t.db", "PYTHONPATH": ""}
+    r = subprocess.run([str(script), "run", "--dataset", "d.jsonl", "--model", "python:local_app:answer@v1"],
+                       cwd=tmp_path, env=env, capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0 and "100%" in r.stdout, r.stdout + r.stderr
