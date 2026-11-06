@@ -297,20 +297,3 @@ A judge can be wrong. Label some answers by hand, then run `validate-judge` to s
 ## Speed
 
 TrustBench saves a 20,000-case run in 2.7 seconds (it took 17). A list of runs answers in 30 ms (it was 43 s). Details, numbers and the reasons are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
-
-## What it does well, and what it does not
-
-**Strong:** statistics you can defend (Wilson and paired intervals, McNemar, multiple-test control), a release gate that says "inconclusive" or "incomplete" instead of guessing,
-judge validation against human labels, robustness tests, calibration, failure analysis by stage, a loop from production to tests, privacy by default (measurements only, redaction, encryption),
-multi-tenant keys, and a self-test that proves the numbers and is itself tested by breaking the code.
-
-**Narrower than other tools:** fewer public benchmarks than lm-evaluation-harness or Inspect AI, no red-team prompt generator, and no community yet
-There is a plugin entry point for evaluators and a YAML config for runs. Test cases are still JSONL, not a YAML test file like Promptfoo.
-
-**Not verified here:**
-
-- A call to a live provider. We used no key.
-- A real PostgreSQL server and a real Redis server.
-- The Docker images. We checked the files but did not build them.
-- The GitHub workflow and Action. We never ran them on GitHub.
-The dashboard typechecks and builds. See [docs/ISSUES.md](docs/ISSUES.md). Run `trustbench selftest` and `pytest` first on your machine, then try one small real run.
