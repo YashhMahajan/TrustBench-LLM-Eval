@@ -1,5 +1,7 @@
 import pytest
 
+pytest_plugins = ["pytester"]
+
 from trustbench.datasets import CaseSpec, import_dataset
 from trustbench.db import init_db, make_engine
 

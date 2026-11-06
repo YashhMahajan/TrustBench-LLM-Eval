@@ -31,19 +31,21 @@ def _show(factory, run_id: str, batch: int | None = None) -> None:
 
 @app.command()
 def run(
-    dataset: str = typer.Option("smoke", help="Built-in suite name or path to .jsonl/.json/.csv"),
-    model: list[str] = typer.Option(None, "--model", "-m", help="provider:model. Repeat for more models."),
-    reps: int = typer.Option(1, help="Repetitions for each case"),
-    concurrency: int = typer.Option(4),
-    retries: int = typer.Option(2),
-    timeout: float = typer.Option(60.0, help="Seconds for each model call"),
+    dataset: str = typer.Option(None, help="Built-in suite name or path to .jsonl/.json/.csv (default: the config file, else smoke)"),
+    model: list[str] = typer.Option(None, "--model", "-m", help="provider:model, python:module:function@label or http:URL@label. Repeat for more."),
+    target: list[str] = typer.Option(None, "--target", "-t", help="A target name from trustbench.yaml. Repeat for more."),
+    config: Path = typer.Option(None, "--config", help="Config file (default: ./trustbench.yaml when it exists)"),
+    reps: int = typer.Option(None, help="Repetitions for each case (default 1)"),
+    concurrency: int = typer.Option(None, help="Calls at the same time (default 4)"),
+    retries: int = typer.Option(None, help="Retries of a failed call (default 2)"),
+    timeout: float = typer.Option(None, help="Seconds for each model call (default 60)"),
     budget: float = typer.Option(None, help="Stop starting new calls after this many USD"),
     name: str = typer.Option(None, help="A label for the run"),
     judge: str = typer.Option(None, help="provider:model that grades open answers"),
     rpm: float = typer.Option(None, help="Most calls to start in one minute for each provider"),
     no_cache: bool = typer.Option(False, "--no-cache", help="Ask the model again, even when the answer is stored"),
 ):
-    """Run a dataset against your models. Without --model, use every API key found."""
+    """Run a dataset against your models or apps. Reads trustbench.yaml when it exists. Flags win over the file."""
     from .datasets import DatasetError
     from .engine import RunOptions
     from .datasets import import_dataset
@@ -53,7 +55,21 @@ def run(
     from .engine import RunInterrupted, run_eval
     from .providers import allow_app_targets
     allow_app_targets()                      # Only the CLI and pytest may run python: and http: targets.
-    specs = model or detect_models()
+    from .edd.config import ConfigError, RunSettings, load_config
+    try:
+        cfg = load_config(config)
+        if target and not cfg:
+            raise ConfigError("--target needs a trustbench.yaml. Create one with 'trustbench init'.")
+        specs = model or (cfg.specs(target) if cfg and (cfg.targets or target) else None) or detect_models()
+    except ConfigError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    settings = cfg.run if cfg else RunSettings()
+    dataset = dataset or (cfg.dataset if cfg else None) or "smoke"
+    judge = judge or (cfg.judge if cfg else None)
+    reps, concurrency = reps or settings.reps, concurrency or settings.concurrency
+    retries = settings.retries if retries is None else retries
+    timeout, budget, rpm = timeout or settings.timeout, budget or settings.budget, rpm or settings.rpm
     if not specs:
         console.print("[red]No model found.[/red] Set ANTHROPIC_API_KEY, OPENAI_API_KEY or GEMINI_API_KEY, "
                       "or use --model mock:smoke to try it without a key.")
@@ -83,7 +99,7 @@ def run(
             run_id = run_eval(factory, version.id, specs,
                               RunOptions(repetitions=reps, concurrency=concurrency, retries=retries,
                                          timeout=timeout, budget_usd=budget, name=name, judge=judge,
-                                         rpm=rpm, cache=not no_cache),
+                                         rpm=rpm, cache=settings.cache and not no_cache),
                               workspace_id=workspace_id, progress=update)
     except ValueError as e:
         console.print(f"[red]{e}[/red]")
@@ -380,4 +396,4 @@ def calibration(run_id: str, model: str = typer.Option(None, help="provider:mode
         console.print(f"[yellow]{w}[/yellow]")
 
 
-from . import cli_stats, cli_server, cli_selftest, cli_db  # noqa: E402,F401  (add compare, gate, baseline, policy, workspace, key and serve commands)
+from . import cli_stats, cli_server, cli_selftest, cli_db, cli_edd  # noqa: E402,F401  (add compare, gate, baseline, policy, workspace, key, serve and init commands)

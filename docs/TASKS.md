@@ -1,0 +1,82 @@
+# TrustBench — Tasks
+
+Phase 8: Eval-Driven Development (EDD). Plan source: the approved plan, summarized in `docs/PRD.md`.
+Rules: commit on the local machine after each milestone. **Do not push** until the owner says so.
+Each milestone ends with `pytest`, `ruff check src tests`, and `trustbench selftest` green.
+
+Legend: [x] done · [~] in progress · [ ] to do
+
+## Completed: Phases 1–7 (the platform)
+
+| Phase | What was built |
+|---|---|
+| 1. Core engine | Provider interface (Anthropic, OpenAI, Gemini, OpenAI-compatible, local, mock). Tokens, latency, cost, errors. JSONL datasets with content-hash versions. Exact-match and rule evaluators. Generate and re-score modes. `trustbench run` with key detection. Re-scoring sends zero model calls. |
+| 2. Scoring quality | Schema, programmatic, reference, LLM-judge and pairwise evaluators. Claim-level hallucination pipeline (supported, contradicted, insufficient, not applicable). Dataset quality checks. Ten built-in suites. Human annotation and judge validation (agreement, kappa, position and length bias). |
+| 3. Statistics and gate | Wilson and bootstrap intervals, McNemar, paired bootstrap, permutation test, practical thresholds. Slice analysis with Benjamini-Hochberg control. Calibration (Brier, ECE, AUROC, risk-coverage). Release policy YAML. Gate: pass, fail, inconclusive, incomplete. `compare` and `gate` commands with exit codes. |
+| 4. Robustness and failures | Metamorphic transforms. Robustness metrics (break rate, degradation, consistency, weakest transform). Prompt-injection suite. Adversarial proposals, always approved by a person. Failure taxonomy, clusters, RAG stage diagnosis, priority score. P50/P95/P99 latency, cost per success, Pareto frontier. |
+| 5. Production loop | SDK (`trustbench.sdk`). Redaction and retention. Online evaluation by sampling. Drift (PSI, KS test). Trace → proposed test → approval → dataset version. Workers and a job queue. Workspaces and keys. |
+| 6. Dashboard | Overview, runs with detail, compare and gate, benchmarks with proposal review, models, production monitor, settings. Every number links to its cases. Every score shows its interval and size. Not built: an Evaluators page and a Reports page (see I-15). |
+| 7. Validation | `trustbench selftest` with simulations of known truth. Each check is tested by breaking the code it watches. Migrations, key expiry, rate limits, run report export, Docker files. |
+
+Later hardening: batched writes, answer cache, resume, rate limit, composite indexes, API edge hardening (see `docs/PERFORMANCE.md`).
+
+## M1 — App targets  [x]  (commit `e69fa1b`)
+- [x] `providers/app.py`: `PythonAppProvider`, `HttpAppProvider`, `@label` versions, git fingerprint
+- [x] `providers/recorder.py`: `span()`, `tool_call()`, isolated per case
+- [x] `GenRequest.input`, `GenResponse.tool_calls/spans`, `Provider.cache_salt`
+- [x] Engine: salt in the cache key, store and replay tool calls and spans
+- [x] Migration 0005 (`model_responses`, `response_cache`)
+- [x] Server never runs app targets (`allow_app_targets` only in CLI)
+- [x] 45 tests, mutation-checked
+
+## M2 — Agent and RAG evaluators  [x]  (commit `1882fea`)
+- [x] `agents/matchers.py`, `eval_tool_call.py`, `eval_trajectory.py`, `eval_task_success.py`, `eval_rag_judged.py`
+- [x] Conversations as input (`input.messages`). Load-time validation (`agents/schema.py`).
+- [x] Failure labels: wrong_tool, bad_args, looped, gave_up, task_not_completed, irrelevant_answer, poor_retrieval
+- [x] Three selftest checks with sabotage tests (31 checks in total)
+
+## M3 — Config, pytest plugin, plugins  [x]
+- [x] `edd/config.py`: `trustbench.yaml` model, loader, template. `trustbench init`.
+- [x] `trustbench run` reads `trustbench.yaml` (`--config`, `--target`). Flags win over the file.
+- [x] `edd/plugins.py`: entry point group `trustbench.evaluators`. A broken plugin is skipped. A plugin cannot replace a built-in. `trustbench plugins`.
+- [x] `edd/pytest_plugin.py`: `trustbench` fixture, replay by default, `--trustbench-live`, `--trustbench-budget`, gate verdict. `pytest11` entry point.
+- [x] Docs: `PRD.md`, `ARCHITECTURE.md`, `ISSUES.md`, `TASKS.md`, `DATA.md`, root `MEMORY.md`. `PLAN.md` merged here and removed. `LEARNING.md` removed.
+- [x] 66 new tests (config, CLI, plugins, pytester-based plugin tests), mutation-checked
+- [x] Commit (local only)
+
+## M4 — Experiments, cost model, prompt versions  [ ]
+- [ ] `edd/experiments.py`: variant name, hypothesis, parent run, `trustbench experiment compare`
+- [ ] `edd/costmodel.py`: confusion-cost matrix, volume, $/year with a bootstrap interval, unknown price → incomplete
+- [ ] Gate rule `max_annual_cost` in `policy.py` and `gate.py`
+- [ ] Prompt files hashed into the run snapshot. `compare` shows the diff.
+- [ ] Migration 0006 if a column is needed
+- [ ] Selftest check for the cost interval (with a sabotage test). Known example: $380,000 manual and $100,000 perfect.
+- [ ] Commit
+
+## M5 — CI/CD  [ ]
+- [ ] `.github/workflows/ci.yml`: ruff, pytest, selftest, docker build, `pnpm build`
+- [ ] `action.yml` (composite): run, gate, PR comment, HTML report artifact
+- [ ] `trustbench ci comment RUN --baseline X --format github`. Update in place. Truncate under the 65k limit.
+- [ ] Golden snapshot test for the comment
+- [ ] Commit (local only)
+
+## M6 — Flagship example and docs  [ ]
+- [ ] `examples/support_agent/`: tools, v0 / v1 / v2, datasets (single-turn, multi-turn, adversarial)
+- [ ] Mock provider scripts deterministic tool calls (runs with no keys)
+- [ ] `make edd-demo`: v0 fails → failures → v1 → v2 passes → prod failure → promote → new version → rerun
+- [ ] `docs/EDD.md`. README section "EDD in 5 minutes". Update the README "does not do" list.
+- [ ] Dashboard: Experiments page, trajectory view
+- [ ] Commit
+
+## Final  [ ]
+- [ ] Full `/cso` scan of the whole codebase. Fix findings. List what remains in `docs/ISSUES.md`.
+- [ ] Update `docs/*`, `README.md`, `MEMORY.md`
+- [ ] One live run against a real provider (I-01), recorded in `docs/PERFORMANCE.md`
+- [ ] Ask the owner before any push
+
+## Backlog (not scheduled)
+- Move old flat modules into packages (needs its own commit and a full test run)
+- Red-team generator and OWASP mapping (I-13)
+- Dev / test / holdout splits and a contamination check (I-17)
+- Labeling UI (I-14). Evaluators and Reports pages (I-15).
+- Baseline names per workspace (I-22)

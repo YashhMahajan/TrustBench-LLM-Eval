@@ -258,7 +258,6 @@ A judge can be wrong. Label some answers by hand, then run `validate-judge` to s
 ## Speed
 
 A 20,000-case run is saved in 2.7 seconds (it was 17). A list of runs answers in 30 ms (it was 43 s). Details, numbers and the reasons are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
-The mistakes we found and fixed, written as a guide for learning, are in [docs/LEARNING.md](docs/LEARNING.md).
 
 ## What it does well, and what it does not
 
