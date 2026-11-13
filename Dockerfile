@@ -1,7 +1,7 @@
 # The TrustBench server and worker. One image, two commands:
 #   trustbench serve --host 0.0.0.0     the API
 #   trustbench worker                   background tasks
-FROM python:3.12-slim
+FROM python:3.15-slim
 
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 WORKDIR /app
